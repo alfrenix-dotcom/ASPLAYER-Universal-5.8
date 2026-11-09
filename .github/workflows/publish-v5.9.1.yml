@@ -25,7 +25,10 @@ jobs:
           gh run download 42684611235 --repo "$GH_REPO" --name "ASPLAYER-5.9.1-LibVLC-APK" --dir output
           test -s output/app-debug.apk
           test -s output/SHA256.txt
-          (cd output && sha256sum -c SHA256.txt)
+          expected=$(awk 'NR==1 {print $1}' output/SHA256.txt)
+          actual=$(sha256sum output/app-debug.apk | awk '{print $1}')
+          test "$actual" = "$expected"
+          echo "SHA-256 correcto: $actual"
           mv output/app-debug.apk output/ASPLAYER-Universal-5.9.1-LibVLC-Carga-Mantenimiento.apk
           sha256sum output/ASPLAYER-Universal-5.9.1-LibVLC-Carga-Mantenimiento.apk
 
