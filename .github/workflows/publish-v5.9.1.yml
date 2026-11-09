@@ -1,0 +1,56 @@
+name: Publicar ASPLAYER 5.9.1 como descarga permanente
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v5.9.1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Descargar APK desde la compilacion verificada
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          gh run download 42684611235 --repo "$GH_REPO" --name "ASPLAYER-5.9.1-LibVLC-APK" --dir output
+          test -s output/app-debug.apk
+          test -s output/SHA256.txt
+          (cd output && sha256sum -c SHA256.txt)
+          mv output/app-debug.apk output/ASPLAYER-Universal-5.9.1-LibVLC-Carga-Mantenimiento.apk
+          sha256sum output/ASPLAYER-Universal-5.9.1-LibVLC-Carga-Mantenimiento.apk
+
+      - name: Publicar version v5.9.1 con APK descargable
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cat > release-notes.txt <<'NOTES'
+          ASPLAYER Universal 5.9.1 — Alftech Solutions
+
+          APK instalable para Android movil y Android TV.
+          LibVLC 3.7.7; controles de avance/retroceso y barra de tiempo;
+          animacion de carga y aviso de contenido en mantenimiento en espanol e ingles.
+
+          Aviso: compilacion de prueba firmada con certificado de depuracion.
+          Las transmisiones de los proveedores emplean HTTP sin cifrar.
+          NOTES
+          APK="output/ASPLAYER-Universal-5.9.1-LibVLC-Carga-Mantenimiento.apk"
+          if gh release view v5.9.1 --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release upload v5.9.1 "$APK" --repo "$GH_REPO" --clobber
+          else
+            gh release create v5.9.1 "$APK" --repo "$GH_REPO" \
+              --title "ASPLAYER Universal 5.9.1 — LibVLC" \
+              --notes-file release-notes.txt --target "${GITHUB_SHA}" --latest
+          fi
+          gh release view v5.9.1 --repo "$GH_REPO" --json url,assets
