@@ -1,4 +1,4 @@
-name: Build ASPLAYER 5.9 Final LibVLC APK
+name: Build ASPLAYER 5.9.1 LibVLC Loading/Maintenance APK
 on:
   push:
     branches: [main]
@@ -36,10 +36,13 @@ jobs:
           sed -i 's/compileSdk 35/compileSdk 36/' app/build.gradle
           sed -i 's/import android.app.ActivityNotFoundException;/import android.content.ActivityNotFoundException;/' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
           python3 patches/seek-controls-5.9.py
+          python3 patches/loading-maintenance-5.9.1.py
           grep -n 'applicationId\|versionName\|compileSdk' app/build.gradle
           grep -n 'dispatchKeyEvent\|setOnSeekBarChangeListener' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
           test -s app/src/main/assets/features-5.7.1.js
           test -s app/src/main/assets/features-5.8.js
+          grep -q 'CONTENIDO EN MANTENIMIENTO' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
+          grep -q 'versionCode 5901' app/build.gradle
       - name: Validate source
         run: |
           python3 tests/check_project.py
@@ -55,7 +58,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.9-Final-LibVLC-APK
+          name: ASPLAYER-5.9.1-LibVLC-APK
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/debug/SHA256.txt
