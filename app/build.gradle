@@ -1,0 +1,16 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.alftech.asplayer.libvlc'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.alftech.asplayer.libvlc'
+        minSdk 23
+        targetSdk 35
+        versionCode 5801
+        versionName '5.8.1-LibVLC'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies {
+    implementation 'org.videolan.android:libvlc-all:3.7.7'
+}
