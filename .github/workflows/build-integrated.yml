@@ -33,6 +33,7 @@ jobs:
         run: |
           unzip -qo sources/ASPLAYER-5.8.2-Complete-Project.zip -d .
           sed -i 's/compileSdk 35/compileSdk 36/' app/build.gradle
+          sed -i 's/import android.app.ActivityNotFoundException;/import android.content.ActivityNotFoundException;/' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
           grep -n 'applicationId\|versionName\|compileSdk' app/build.gradle
           test -s app/src/main/assets/features-5.7.1.js
           test -s app/src/main/assets/features-5.8.js
