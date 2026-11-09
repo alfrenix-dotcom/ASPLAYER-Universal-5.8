@@ -22,10 +22,11 @@ one('    private Button playPause;','''    private Button playPause;
     private String uiLanguage = "en";
     private boolean playbackStarted, playbackFailed, rebufferWaiting;
     private long playbackAttempt, retryPosition;
-    private Runnable playbackDeadline;
+    private Runnable playbackDeadline;''','overlay fields')
+one('    private boolean playerVisible;', '''    private boolean playerVisible;
     private final Runnable showRebuffer = () -> {
         if(playerVisible && playbackStarted && rebufferWaiting && !playbackFailed) showLoadingFeedback();
-    };''','overlay fields')
+    };''','rebuffer callback after player-visible fields')
 one('        createControls();\n        setContentView(root);','        createControls();\n        createPlaybackFeedback();\n        setContentView(root);','create overlay')
 old='''                case MediaPlayer.Event.Playing:
                     syncTimeline();
