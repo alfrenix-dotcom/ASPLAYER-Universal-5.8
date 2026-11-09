@@ -1,0 +1,100 @@
+name: Build ASPLAYER 5.9.2 LibVLC Video Recovery
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'patches/video-recovery-5.9.2.py'
+      - '.github/workflows/build-5.9.2.yml'
+      - 'patches/seek-controls-5.9.py'
+      - 'patches/loading-maintenance-5.9.1.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - name: Android 36 SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Restore ASPLAYER UI and apply incremental native patches
+        run: |
+          set -euo pipefail
+          unzip -qo sources/ASPLAYER-5.8.2-Complete-Project.zip -d .
+          sed -i 's/compileSdk 35/compileSdk 36/' app/build.gradle
+          sed -i 's/import android.app.ActivityNotFoundException;/import android.content.ActivityNotFoundException;/' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
+          python3 patches/seek-controls-5.9.py
+          python3 patches/loading-maintenance-5.9.1.py
+          python3 patches/video-recovery-5.9.2.py
+          grep -n 'applicationId\|versionName\|compileSdk' app/build.gradle
+          grep -q 'MediaPlayer.Event.Vout' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
+          grep -q 'video.setVisibility(View.VISIBLE)' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
+          grep -q 'setHWDecoderEnabled(!useSoftwareDecoder(),false)' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
+          grep -q 'decoder-mode-v592' app/src/main/assets/features-5.8.js
+          grep -q 'versionCode 5902' app/build.gradle
+      - name: Static validation of assets
+        run: |
+          python3 tests/check_project.py
+          for file in app/src/main/assets/*.js; do node --check "$file"; done
+      - name: Compile signed debug APK
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Validate APK and checksum
+        run: |
+          set -euo pipefail
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          unzip -t app/build/outputs/apk/debug/app-debug.apk | tail -n 2
+          mkdir -p out
+          cp app/build/outputs/apk/debug/app-debug.apk out/ASPLAYER-Universal-5.9.2-LibVLC-Video-Recovery.apk
+          (cd out && sha256sum ASPLAYER-Universal-5.9.2-LibVLC-Video-Recovery.apk > SHA256.txt)
+          (cd out && sha256sum -c SHA256.txt)
+          ls -lh out/*
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASPLAYER-5.9.2-LibVLC-APK
+          path: out/*
+          retention-days: 30
+          if-no-files-found: error
+      - name: Publish public GitHub Release v5.9.2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cat > release-notes.txt <<'NOTES'
+          ASPLAYER Universal 5.9.2 — Alftech Solutions
+          Corrige fallas intermitentes de imagen negra con audio: activa la superficie
+          de video antes de conectarla a LibVLC, espera salida de video Vout,
+          reintenta automaticamente una vez usando software si falla la salida,
+          permite seleccionar decodificador Automatico / Hardware / Software
+          y anade un boton manual Recuperar imagen.
+
+          Preserva LibVLC 3.7.7, interfaz, favoritos, historial, subtitulos,
+          controles de desplazamiento y aviso de mantenimiento bilingue.
+
+          La aplicacion tiene ID independiente y se instala junto a 5.9.1.
+          APK de depuracion firmado por GitHub Actions. No probado aun en
+          dispositivos Android reales ni con canales IPTV privados.
+          NOTEs
+          sed -i '$d' release-notes.txt
+          if gh release view v5.9.2 --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release upload v5.9.2 out/*.apk out/SHA256.txt --repo "$GH_REPO" --clobber
+          else
+            gh release create v5.9.2 out/*.apk out/SHA256.txt --repo "$GH_REPO" \
+              --title "ASPLAYER Universal 5.9.2 - LibVLC Video Recovery" \
+              --notes-file release-notes.txt --target "${GITHUB_SHA}" --latest
+          fi
