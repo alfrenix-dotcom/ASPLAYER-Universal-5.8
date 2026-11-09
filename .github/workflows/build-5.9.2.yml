@@ -89,8 +89,7 @@ jobs:
           La aplicacion tiene ID independiente y se instala junto a 5.9.1.
           APK de depuracion firmado por GitHub Actions. No probado aun en
           dispositivos Android reales ni con canales IPTV privados.
-          NOTEs
-          sed -i '$d' release-notes.txt
+          NOTES
           if gh release view v5.9.2 --repo "$GH_REPO" >/dev/null 2>&1; then
             gh release upload v5.9.2 out/*.apk out/SHA256.txt --repo "$GH_REPO" --clobber
           else
