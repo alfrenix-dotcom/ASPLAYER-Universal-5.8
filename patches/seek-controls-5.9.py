@@ -187,11 +187,11 @@ one('        handler.removeCallbacks(progressTicker);\n        if(player!=null)p
 p.write_text(s,encoding="utf-8")
 gradle=Path("app/build.gradle")
 g=gradle.read_text()
-assert "versionCode 213" in g and "versionName '5.8.1-libvlc-test'" in g
-g=g.replace("applicationId 'com.alftech.asplayer.universal.vlc'",
-            "applicationId 'com.alftech.asplayer.universal.vlc.final'")
-g=g.replace("versionCode 213","versionCode 5900")
-g=g.replace("versionName '5.8.1-libvlc-test'","versionName '5.9.0-LibVLC'")
+import re
+assert "applicationId" in g and "versionCode" in g and "versionName" in g
+g=re.sub(r"applicationId\\s+'[^']+'", "applicationId 'com.alftech.asplayer.universal.vlc.final'",g,count=1)
+g=re.sub(r"versionCode\\s+\\d+", "versionCode 5900",g,count=1)
+g=re.sub(r"versionName\\s+'[^']+'", "versionName '5.9.0-LibVLC'",g,count=1)
 gradle.write_text(g)
 assert "dispatchKeyEvent" in s and "setOnSeekBarChangeListener" in s
 print("ASPLAYER 5.9 timeline patch applied",len(s))
