@@ -266,6 +266,8 @@ asset.write_text(a,encoding='utf-8')
 gradle=Path('app/build.gradle')
 g=gradle.read_text(encoding='utf-8')
 assert g.count('versionCode 5900')==1 and g.count("versionName '5.9.0-LibVLC'")==1
+assert g.count("applicationId 'com.alftech.asplayer.universal.vlc.final'")==1
+g=g.replace("applicationId 'com.alftech.asplayer.universal.vlc.final'","applicationId 'com.alftech.asplayer.universal.vlc.final.v591'")
 g=g.replace('versionCode 5900','versionCode 5901').replace("versionName '5.9.0-LibVLC'","versionName '5.9.1-LibVLC'")
 gradle.write_text(g,encoding='utf-8')
 html=Path('app/src/main/assets/index.html')
