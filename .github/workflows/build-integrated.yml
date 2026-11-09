@@ -1,9 +1,10 @@
-name: Build ASPLAYER 5.8.2 Full UI LibVLC APK
+name: Build ASPLAYER 5.9 Final LibVLC APK
 on:
   push:
     branches: [main]
     paths:
       - 'sources/ASPLAYER-5.8.2-Complete-Project.zip'
+      - 'patches/**'
       - '.github/workflows/build-integrated.yml'
   workflow_dispatch:
 permissions:
@@ -34,7 +35,9 @@ jobs:
           unzip -qo sources/ASPLAYER-5.8.2-Complete-Project.zip -d .
           sed -i 's/compileSdk 35/compileSdk 36/' app/build.gradle
           sed -i 's/import android.app.ActivityNotFoundException;/import android.content.ActivityNotFoundException;/' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
+          python3 patches/seek-controls-5.9.py
           grep -n 'applicationId\|versionName\|compileSdk' app/build.gradle
+          grep -n 'dispatchKeyEvent\|setOnSeekBarChangeListener' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
           test -s app/src/main/assets/features-5.7.1.js
           test -s app/src/main/assets/features-5.8.js
       - name: Validate source
@@ -52,7 +55,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.8.2-Full-LibVLC-APK
+          name: ASPLAYER-5.9-Final-LibVLC-APK
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/debug/SHA256.txt
