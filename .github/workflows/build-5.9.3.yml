@@ -1,7 +1,7 @@
 name: Build ASPLAYER 5.9.3 APK and unsigned AAB
 on:
   push:
-    branches: [main]
+    branches: [main, playstore/aab-preparation-5.9.3]
     paths:
       - 'patches/upgrade-5.9.3.py'
       - '.github/workflows/build-5.9.3.yml'
@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
           python3 tests/check_project.py
           for f in app/src/main/assets/*.js; do node --check "$f"; done
-      - name: Build APK (unsigned release + separately signed debug test)
+      - name: Build APK and AAB (unsigned release + signed debug test)
         run: gradle --no-daemon --stacktrace :app:assembleRelease :app:assembleDebug :app:bundleRelease
       - name: Assemble unsigned bundle and signing utilities
         run: |
