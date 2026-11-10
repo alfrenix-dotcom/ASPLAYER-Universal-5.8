@@ -1,0 +1,71 @@
+name: Build ASPLAYER 5.9.3 APK and unsigned signing base
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'patches/upgrade-5.9.3.py'
+      - '.github/workflows/build-5.9.3.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - name: Android 36 and signing tools
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Reconstruct ASPLAYER 5.9.3 from original source
+        run: |
+          set -euo pipefail
+          unzip -qo sources/ASPLAYER-5.8.2-Complete-Project.zip -d .
+          sed -i 's/compileSdk 35/compileSdk 36/' app/build.gradle
+          sed -i 's/import android.app.ActivityNotFoundException;/import android.content.ActivityNotFoundException;/' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
+          python3 patches/seek-controls-5.9.py
+          python3 patches/loading-maintenance-5.9.1.py
+          python3 patches/video-recovery-5.9.2.py
+          python3 patches/upgrade-5.9.3.py
+          grep -E 'applicationId|versionCode|versionName|compileSdk' app/build.gradle
+          grep -q 'versionCode 5903' app/build.gradle
+          grep -q 'com.alftech.asplayer.universal.vlc.final.v592' app/build.gradle
+          grep -q 'ASPLAYER Universal 5.9.3' app/src/main/assets/features-5.9.3.js
+          grep -q 'openWarpVpn()' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
+      - name: Validate application JS and tests
+        run: |
+          set -euo pipefail
+          python3 tests/check_project.py
+          for f in app/src/main/assets/*.js; do node --check "$f"; done
+      - name: Build APK (unsigned release + separately signed debug test)
+        run: gradle --no-daemon --stacktrace :app:assembleRelease :app:assembleDebug
+      - name: Assemble unsigned bundle and signing utilities
+        run: |
+          set -euo pipefail
+          mkdir -p out/tools/lib
+          cp app/build/outputs/apk/release/app-release-unsigned.apk out/ASPLAYER-5.9.3-UNSIGNED.apk
+          cp app/build/outputs/apk/debug/app-debug.apk out/ASPLAYER-5.9.3-TEST-DEBUG.apk
+          cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" out/tools/apksigner
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" out/tools/lib/apksigner.jar
+          sha256sum out/*.apk > out/BUILD-SHA256.txt
+          (cd out && sha256sum -c BUILD-SHA256.txt)
+          unzip -t out/ASPLAYER-5.9.3-UNSIGNED.apk | tail -n 2
+      - name: Upload unsigned APK and signing tool for private local signing
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASPLAYER-5.9.3-Unsigned-And-Tools
+          path: out/*
+          retention-days: 30
+          if-no-files-found: error
