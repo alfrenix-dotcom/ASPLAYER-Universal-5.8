@@ -59,8 +59,7 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk out/ASPLAYER-5.9.3-TEST-DEBUG.apk
           cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" out/tools/apksigner
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" out/tools/lib/apksigner.jar
-          sha256sum out/*.apk > out/BUILD-SHA256.txt
-          (cd out && sha256sum -c BUILD-SHA256.txt)
+          (cd out && sha256sum *.apk > BUILD-SHA256.txt && sha256sum -c BUILD-SHA256.txt)
           unzip -t out/ASPLAYER-5.9.3-UNSIGNED.apk | tail -n 2
       - name: Upload unsigned APK and signing tool for private local signing
         uses: actions/upload-artifact@v4
