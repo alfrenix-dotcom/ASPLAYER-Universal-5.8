@@ -30,9 +30,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Reconstruct ASPLAYER 5.9.3 from original source
+      - name: Reconstruct ASPLAYER 5.9.4 from original source
         run: |
           set -euo pipefail
+          # Restore the same clean source tree used for the validated local build.
+          python3 -c "import shutil; shutil.rmtree('app', ignore_errors=True)"
           unzip -qo sources/ASPLAYER-5.8.2-Complete-Project.zip -d .
           sed -i 's/compileSdk 35/compileSdk 36/' app/build.gradle
           sed -i 's/import android.app.ActivityNotFoundException;/import android.content.ActivityNotFoundException;/' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
@@ -43,6 +45,8 @@ jobs:
           python3 patches/playstore-api36.py
           grep -E 'applicationId|versionCode|versionName|compileSdk' app/build.gradle
           grep -q 'versionCode 5904' app/build.gradle
+          grep -q 'targetSdk 36' app/build.gradle
+          grep -q 'minSdk 21' app/build.gradle
           grep -q 'com.alftech.asplayer.universal.vlc.final.v592' app/build.gradle
           grep -q 'ASPLAYER Universal 5.9.4' app/src/main/assets/features-5.9.3.js
           grep -q 'openWarpVpn()' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
