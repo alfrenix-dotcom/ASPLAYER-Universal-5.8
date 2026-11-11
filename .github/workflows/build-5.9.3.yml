@@ -1,4 +1,4 @@
-name: Build ASPLAYER 5.9.5 API 36 APK and AAB
+name: Build ASPLAYER 5.9.6 API 36 APK and AAB
 on:
   push:
     branches: [main, playstore/aab-preparation-5.9.3, playstore/api36-compatibility]
@@ -6,6 +6,7 @@ on:
       - 'patches/upgrade-5.9.3.py'
       - 'patches/playstore-api36.py'
       - 'patches/manual-server-5.9.5.py'
+      - 'patches/persistent-session-5.9.6.py'
       - '.github/workflows/build-5.9.3.yml'
   workflow_dispatch:
 permissions:
@@ -31,7 +32,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Reconstruct ASPLAYER 5.9.5 from original source
+      - name: Reconstruct ASPLAYER 5.9.6 from original source
         run: |
           set -euo pipefail
           # Restore the same clean source tree used for the validated local build.
@@ -45,12 +46,13 @@ jobs:
           python3 patches/upgrade-5.9.3.py
           python3 patches/playstore-api36.py
           python3 patches/manual-server-5.9.5.py
+          python3 patches/persistent-session-5.9.6.py
           grep -E 'applicationId|versionCode|versionName|compileSdk' app/build.gradle
-          grep -q 'versionCode 5905' app/build.gradle
+          grep -q 'versionCode 5906' app/build.gradle
           grep -q 'targetSdk 36' app/build.gradle
           grep -q 'minSdk 21' app/build.gradle
           grep -q 'com.alftech.asplayer.universal.vlc.final.v592' app/build.gradle
-          grep -q 'ASPLAYER Universal 5.9.5' app/src/main/assets/features-5.9.3.js
+          grep -q 'ASPLAYER Universal 5.9.6' app/src/main/assets/features-5.9.3.js
           grep -q 'openWarpVpn()' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
       - name: Validate application JS and tests
         run: |
@@ -63,17 +65,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out/tools/lib
-          cp app/build/outputs/apk/release/app-release-unsigned.apk out/ASPLAYER-5.9.5-UNSIGNED.apk
-          cp app/build/outputs/bundle/release/app-release.aab out/ASPLAYER-5.9.5-UNSIGNED.aab
-          cp app/build/outputs/apk/debug/app-debug.apk out/ASPLAYER-5.9.5-TEST-DEBUG.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk out/ASPLAYER-5.9.6-UNSIGNED.apk
+          cp app/build/outputs/bundle/release/app-release.aab out/ASPLAYER-5.9.6-UNSIGNED.aab
+          cp app/build/outputs/apk/debug/app-debug.apk out/ASPLAYER-5.9.6-TEST-DEBUG.apk
           cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" out/tools/apksigner
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" out/tools/lib/apksigner.jar
           (cd out && sha256sum *.apk *.aab > BUILD-SHA256.txt && sha256sum -c BUILD-SHA256.txt)
-          unzip -t out/ASPLAYER-5.9.5-UNSIGNED.apk | tail -n 2
+          unzip -t out/ASPLAYER-5.9.6-UNSIGNED.apk | tail -n 2
       - name: Upload unsigned APK, AAB and signing tool for private local signing
         uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.9.5-API36-Unsigned-AAB-APK-And-Tools
+          name: ASPLAYER-5.9.6-API36-Unsigned-AAB-APK-And-Tools
           path: out/*
           retention-days: 30
           if-no-files-found: error
