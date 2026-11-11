@@ -57,3 +57,11 @@ p.write_text(s)
 p=root/'app/build.gradle';s=p.read_text().replace('versionCode 5904','versionCode 5905').replace('5.9.4','5.9.5');p.write_text(s)
 p=root/'app/src/main/assets/features-5.9.3.js';p.write_text(p.read_text().replace('5.9.4','5.9.5'))
 print('Manual HTTP/HTTPS login with mandatory local PIN applied, 5.9.5')
+p=root/'app/src/main/assets/app.js';s=p.read_text()
+s=s.replace("restore();languageUI();displayAuth();", """Object.assign(LABELS.en,{legal:'ASPLAYER is a media player. It does not include its own catalogs or host channels, movies, series or other audiovisual content. Users enter their own server and credentials and must be authorized to play third-party content.',chip2:'Manual server',saved:'Connected. Credentials remain only in memory for this session.'});
+Object.assign(LABELS.es,{legal:'ASPLAYER es un reproductor multimedia. No incluye catálogos propios ni aloja canales, películas, series u otros contenidos audiovisuales. El usuario introduce su servidor y sus credenciales y debe contar con autorización para reproducir contenido de terceros.',chip2:'Servidor manual',saved:'Conectado. Las credenciales permanecen solo en memoria durante esta sesión.'});
+restore();languageUI();displayAuth();""")
+p.write_text(s)
+p=root/'app/src/main/assets/index.html';s=p.read_text().replace('<p class="status" id="login-status" role="status"></p>', '<p class="status" id="login-status" role="status"></p><p class="tiny" data-i18n="legal"></p>')
+s=s.replace('<div class="account-grid">','<div class="account-grid hidden">')
+p.write_text(s)
