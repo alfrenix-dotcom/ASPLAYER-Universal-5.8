@@ -1,7 +1,7 @@
-name: Build ASPLAYER 5.9.7 API 36 APK and AAB
+name: Build ASPLAYER 6.0 Premium TV Preview APK
 on:
   push:
-    branches: [main, playstore/aab-preparation-5.9.3, playstore/api36-compatibility]
+    branches: [feature/asplayer-6-premium-tv]
     paths:
       - 'patches/upgrade-5.9.3.py'
       - 'patches/playstore-api36.py'
@@ -9,6 +9,8 @@ on:
       - 'patches/persistent-session-5.9.6.py'
       - 'patches/privacy-link-5.9.7.py'
       - '.github/workflows/build-5.9.3.yml'
+      - 'patches/premium-tv-6.py'
+      - 'premium-tv-assets/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,7 +35,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Reconstruct ASPLAYER 5.9.7 from original source
+      - name: Reconstruct ASPLAYER 6.0 preview from 5.9.7 source
         run: |
           set -euo pipefail
           # Restore the same clean source tree used for the validated local build.
@@ -49,12 +51,15 @@ jobs:
           python3 patches/manual-server-5.9.5.py
           python3 patches/persistent-session-5.9.6.py
           python3 patches/privacy-link-5.9.7.py
+          cp premium-tv-assets/premium-tv-6.css app/src/main/assets/premium-tv-6.css
+          cp premium-tv-assets/premium-tv-6.js app/src/main/assets/premium-tv-6.js
+          python3 patches/premium-tv-6.py
           grep -E 'applicationId|versionCode|versionName|compileSdk' app/build.gradle
-          grep -q 'versionCode 5907' app/build.gradle
+          grep -q 'versionCode 6000' app/build.gradle
           grep -q 'targetSdk 36' app/build.gradle
           grep -q 'minSdk 21' app/build.gradle
           grep -q 'com.alftech.asplayer.universal.vlc.final.v592' app/build.gradle
-          grep -q 'ASPLAYER Universal 5.9.7' app/src/main/assets/features-5.9.3.js
+          grep -q 'ASPLAYER Universal 6.0.0' app/src/main/assets/features-5.9.3.js
           grep -q 'openWarpVpn()' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
       - name: Validate application JS and tests
         run: |
@@ -67,9 +72,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out/tools/lib
-          cp app/build/outputs/apk/release/app-release-unsigned.apk out/ASPLAYER-5.9.7-UNSIGNED.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk out/ASPLAYER-6.0-PREVIEW-UNSIGNED.apk
           cp app/build/outputs/bundle/release/app-release.aab out/ASPLAYER-5.9.7-UNSIGNED.aab
-          cp app/build/outputs/apk/debug/app-debug.apk out/ASPLAYER-5.9.7-TEST-DEBUG.apk
+          cp app/build/outputs/apk/debug/app-debug.apk out/ASPLAYER-6.0-PREVIEW-TEST-DEBUG.apk
           cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" out/tools/apksigner
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" out/tools/lib/apksigner.jar
           (cd out && sha256sum *.apk *.aab > BUILD-SHA256.txt && sha256sum -c BUILD-SHA256.txt)
@@ -77,7 +82,7 @@ jobs:
       - name: Upload unsigned APK, AAB and signing tool for private local signing
         uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.9.7-API36-Unsigned-AAB-APK-And-Tools
+          name: ASPLAYER-6.0-Premium-TV-Preview-APK-AAB
           path: out/*
           retention-days: 30
           if-no-files-found: error
