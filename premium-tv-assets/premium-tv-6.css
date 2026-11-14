@@ -1,0 +1,18 @@
+/* ASPLAYER 6.0 Premium TV preview — original Alftech styling */
+:root{--premium-bg:#080e1e;--premium-panel:#111a32;--premium-accent:#9c63f6;--premium-cyan:#2bc9f5}
+@media (min-width:760px){
+ body.premium-tv-active{background:radial-gradient(ellipse at 75% 0%,#19244d 0%,#080e1e 65%) fixed!important}
+ body.premium-tv-active button,body.premium-tv-active a,body.premium-tv-active select{scroll-margin:64px}
+ body.premium-tv-active .premium-sidebar{display:flex}
+ body.premium-tv-active.premium-sidebar-expanded .premium-sidebar{width:205px}
+ body.premium-tv-active.premium-sidebar-expanded .premium-sidebar .premium-label{display:inline}
+ body.premium-tv-active .premium-content-shift{margin-left:72px}
+}
+.premium-sidebar{position:fixed;z-index:1000;left:0;top:0;bottom:0;width:64px;display:none;flex-direction:column;gap:8px;padding:14px 7px;background:#0a1025ee;border-right:1px solid #344269;box-sizing:border-box;transition:width .16s ease}
+.premium-sidebar button{display:flex;align-items:center;gap:12px;text-align:left;width:100%;min-height:50px;padding:12px;border:1px solid transparent;border-radius:12px;background:#1a2544;color:white;cursor:pointer}
+.premium-sidebar button:focus-visible,.premium-sidebar button:focus{outline:3px solid #e2b5ff;outline-offset:2px;background:#5632a1}
+.premium-sidebar .premium-label{display:none;white-space:nowrap}
+.premium-sidebar .premium-brand{color:#56d5ff;font-weight:800;font-size:11px;text-align:center;padding:10px 0}
+body.premium-tv-active :is(button,a,[role=button],input,select,[tabindex]):focus-visible{outline:3px solid #c18aff!important;outline-offset:3px!important;box-shadow:0 0 0 5px #18234a,0 0 18px #9c63f688!important}
+@media (max-width:759px){.premium-sidebar{display:none!important}}
+@media (prefers-reduced-motion:reduce){.premium-sidebar{transition:none!important}}
