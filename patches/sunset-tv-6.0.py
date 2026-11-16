@@ -64,6 +64,7 @@ function move(key){
 // Capture before the legacy 5.9.3 spatial handler to prevent conflicting moves.
 // Native VLC player controls remain managed by Android, not this DOM listener.
 document.addEventListener('keydown',function(e){
+ if(!window.matchMedia('(min-width:850px) and (orientation:landscape)').matches)return;
  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;
  const a=document.activeElement;
  if(a&&((a.tagName==='INPUT'&&a.type!=='button')||a.tagName==='TEXTAREA'||a.tagName==='SELECT'||a.isContentEditable))return;
