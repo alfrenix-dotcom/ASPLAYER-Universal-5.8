@@ -35,6 +35,7 @@ jobs:
           python3 patches/privacy-link-5.9.7.py
           python3 patches/tv-focus-5.9.9.py
           python3 patches/tv-adaptive-followup-5.9.9.py
+          python3 patches/tv-smarter-layout-5.9.9.py
           python3 - <<'PY'
           from pathlib import Path
           import re
