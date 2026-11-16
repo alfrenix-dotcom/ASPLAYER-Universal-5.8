@@ -43,6 +43,18 @@ jobs:
           python3 patches/privacy-link-5.9.7.py
           grep -q 'versionCode 5907' app/build.gradle
           grep -q 'com.alftech.asplayer.universal.vlc.final.v592' app/build.gradle
+      - name: Inspect actual ASPLAYER UI structure
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          class Inspector(HTMLParser):
+              def handle_starttag(self,tag,attrs):
+                  d=dict(attrs)
+                  if d.get('id') or ('view' in d.get('class','')) or ('category' in d.get('class','')):
+                      print(tag, 'id='+d.get('id',''), 'class='+d.get('class','')[:120])
+          Inspector().feed(Path('app/src/main/assets/index.html').read_text())
+          PY
       - name: Prepare 6.0.0 baseline metadata
         run: |
           python3 patches/prepare-6.0.0.py
