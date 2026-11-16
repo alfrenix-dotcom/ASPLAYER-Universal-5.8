@@ -31,10 +31,10 @@ jobs:
           from pathlib import Path
           p=Path("app/build.gradle")
           s=p.read_text()
-          assert re.search(r"versionCode\\s+\\d+",s), "versionCode not found"
-          s=re.sub(r"versionCode\\s+\\d+", "versionCode 5999", s, count=1)
-          assert re.search(r"versionName\\s+['\\\"][^'\\\"]+['\\\"]",s), "versionName not found"
-          s=re.sub(r"versionName\\s+['\\\"][^'\\\"]+['\\\"]", "versionName '5.9.9-TV-focus-test'", s, count=1)
+          assert re.search(r"versionCode\s+\d+",s), "versionCode not found"
+          s=re.sub(r"versionCode\s+\d+", "versionCode 5999", s, count=1)
+          assert re.search(r"versionName\s+['\\"][^'\\"]+['\\"]",s), "versionName not found"
+          s=re.sub(r"versionName\s+['\\"][^'\\"]+['\\"]", "versionName '5.9.9-TV-focus-test'", s, count=1)
           p.write_text(s)
           print("IMPORTANT: debug signing is NOT Play-compatible; verify applicationId against 5.9.7 separately.")
           PY
