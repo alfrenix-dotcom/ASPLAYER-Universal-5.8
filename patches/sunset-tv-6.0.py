@@ -7,7 +7,7 @@ from pathlib import Path
 root=Path("app/src/main/assets")
 html=root/"index.html"
 s=html.read_text("utf-8")
-needle="</body>"
+needle='<script src="features-5.9.3.js"></script>'
 assert s.count(needle)==1, "Cannot find unique HTML body insertion"
 assert "asplayer-6-tv.js" not in s, "6.0 UI already injected"
 s=s.replace(needle,'<script src="asplayer-6-tv.js"></script>\n'+needle,1)
