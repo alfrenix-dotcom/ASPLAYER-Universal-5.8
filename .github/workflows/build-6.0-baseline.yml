@@ -1,4 +1,4 @@
-name: ASPLAYER 6.0.0 baseline validation (not Sunset UI)
+name: ASPLAYER 6.0.0 early Sunset TV UI validation
 on:
   workflow_dispatch:
 permissions:
@@ -40,6 +40,8 @@ jobs:
       - name: Prepare 6.0.0 baseline metadata
         run: |
           python3 patches/prepare-6.0.0.py
+          python3 patches/sunset-tv-6.0.py
+          grep -q 'asplayer-6-tv.js' app/src/main/assets/index.html
           grep -q 'versionCode 6000' app/build.gradle
           grep -q 'versionName "6.0.0"' app/build.gradle
       - name: Validate and build unsigned baseline
@@ -50,7 +52,7 @@ jobs:
       - name: Upload unsigned baseline only
         uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-6.0.0-BASELINE-UNSIGNED-NOT-REDESIGNED
+          name: ASPLAYER-6.0.0-EARLY-TV-UI-UNSIGNED-UNTESTED
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/bundle/release/app-release.aab
