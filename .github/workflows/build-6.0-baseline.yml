@@ -1,5 +1,11 @@
 name: ASPLAYER 6.0.0 early Sunset TV UI validation
 on:
+  push:
+    branches: [feature/asplayer-6.0-sunset-from-5.9.7]
+    paths:
+      - 'patches/prepare-6.0.0.py'
+      - 'patches/sunset-tv-6.0.py'
+      - '.github/workflows/build-6.0-baseline.yml'
   workflow_dispatch:
 permissions:
   contents: read
