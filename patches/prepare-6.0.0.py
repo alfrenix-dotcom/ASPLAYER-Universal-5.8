@@ -17,7 +17,7 @@ for key, value in expected.items():
         raise SystemExit(f"Refusing to patch: expected 5.9.7 {key}={value} not found")
 source, n = re.subn(r"\bversionCode\s+5907\b", "versionCode 6000", source)
 assert n == 1, "Expected exactly one versionCode"
-source, n = re.subn(r'\bversionName\s+["\']5\.9\.7["\']', 'versionName "6.0.0"', source)
+source, n = re.subn(r'\bversionName\s+["\']5\.9\.7(?:-LibVLC)?["\']', 'versionName "6.0.0"', source)
 if n != 1:
     raise SystemExit("Expected exactly one 5.9.7 versionName; no files written")
 gradle.write_text(source, encoding="utf-8")
