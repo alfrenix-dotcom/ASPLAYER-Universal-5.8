@@ -13,7 +13,7 @@ expected = {
     "versionCode": "5907",
 }
 for key, value in expected.items():
-    if not re.search(r"\\b" + key + r"\\s+[\'\\\"]?" + re.escape(value) + r"[\'\\\"]?(?=\\s|$)", source):
+    if not any(f"{key} {q}{value}{q}" in source for q in ("\'", "\"", "")):
         raise SystemExit(f"Refusing to patch: expected 5.9.7 {key}={value} not found")
 source, n = re.subn(r"\bversionCode\s+5907\b", "versionCode 6000", source)
 assert n == 1, "Expected exactly one versionCode"
