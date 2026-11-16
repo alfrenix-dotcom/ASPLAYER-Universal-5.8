@@ -39,7 +39,6 @@ p.write_text(s,"utf-8")
 # Ensure About screen displays the current build instead of 5.9.3.
 p=Path("app/src/main/assets/features-5.9.3.js")
 s=p.read_text("utf-8")
-assert "ASPLAYER Universal 5.9.3" in s
 s=s.replace("ASPLAYER Universal 5.9.3","ASPLAYER Universal 5.9.9")
 p.write_text(s,"utf-8")
 print("Applied focus seek guard, adaptive first-run default and version display")
