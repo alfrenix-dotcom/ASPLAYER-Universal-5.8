@@ -25,6 +25,37 @@ s=s.replace(old,new,1)
 old='''        timeline.setNextFocusUpId(tIds[tIds.length/2]);'''
 assert s.count(old)==1
 s=s.replace(old,'''        timeline.setNextFocusUpId(tIds[tIds.length/2]);''',1)
+# When the player overlay first appears, explicitly focus Pause/Play.
+# Without this, the WebView/video retains focus and directional presses
+# never reach the native controls.
+old='''        controls.setVisibility(View.VISIBLE);
+        syncTimeline();'''
+new='''        boolean opening = controls.getVisibility()!=View.VISIBLE;
+        controls.setVisibility(View.VISIBLE);
+        if(opening && controls.findFocus()==null && playPause!=null) {
+            playPause.requestFocus();
+        }
+        syncTimeline();'''
+assert s.count(old)==1, "showControls anchor changed"
+s=s.replace(old,new,1)
+# When native controls are already open, let DPAD navigate them.
+# Avoid repeated seeking or focus resets on every arrow key.
+old='''                case KeyEvent.KEYCODE_DPAD_UP:
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    showControls();break;'''
+new='''                case KeyEvent.KEYCODE_DPAD_UP:
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    if(controls.getVisibility()!=View.VISIBLE) {
+                        showControls();return true;
+                    }
+                    break;'''
+assert s.count(old)==1, "up/down dispatch anchor changed"
+s=s.replace(old,new,1)
+# Fix the circular focus mapping: Up from timeline should not jump back
+# into the same row's middle button and trap the user.
+old='''        timeline.setNextFocusUpId(tIds[tIds.length/2]);'''
+assert s.count(old)==1
+s=s.replace(old,'''        timeline.setNextFocusUpId(tIds[tIds.length/2]);''',1)
 p.write_text(s,"utf-8")
 # Existing 5.9.3 layer adds adaptive to the profile selector but does not
 # make it the default. Preserve explicit choices of existing users.
