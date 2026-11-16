@@ -1,0 +1,58 @@
+name: ASPLAYER 6.0.0 baseline validation (not Sunset UI)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Reconstruct original 5.9.7
+        run: |
+          set -euo pipefail
+          rm -rf app
+          unzip -qo sources/ASPLAYER-5.8.2-Complete-Project.zip -d .
+          sed -i 's/compileSdk 35/compileSdk 36/' app/build.gradle
+          sed -i 's/import android.app.ActivityNotFoundException;/import android.content.ActivityNotFoundException;/' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
+          python3 patches/seek-controls-5.9.py
+          python3 patches/loading-maintenance-5.9.1.py
+          python3 patches/video-recovery-5.9.2.py
+          python3 patches/upgrade-5.9.3.py
+          python3 patches/playstore-api36.py
+          python3 patches/manual-server-5.9.5.py
+          python3 patches/persistent-session-5.9.6.py
+          python3 patches/privacy-link-5.9.7.py
+          grep -q 'versionCode 5907' app/build.gradle
+          grep -q 'com.alftech.asplayer.universal.vlc.final.v592' app/build.gradle
+      - name: Prepare 6.0.0 baseline metadata
+        run: |
+          python3 patches/prepare-6.0.0.py
+          grep -q 'versionCode 6000' app/build.gradle
+          grep -q 'versionName "6.0.0"' app/build.gradle
+      - name: Validate and build unsigned baseline
+        run: |
+          python3 tests/check_project.py
+          for f in app/src/main/assets/*.js; do node --check "$f"; done
+          gradle --no-daemon :app:assembleRelease :app:bundleRelease
+      - name: Upload unsigned baseline only
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASPLAYER-6.0.0-BASELINE-UNSIGNED-NOT-REDESIGNED
+          path: |
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/bundle/release/app-release.aab
+          retention-days: 14
+          if-no-files-found: error
