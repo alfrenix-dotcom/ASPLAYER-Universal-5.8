@@ -60,11 +60,11 @@ js=r"""
   const css=document.createElement('style');
   css.textContent=`
   @media (min-width:900px) and (orientation:landscape){
-    #app-shell{display:block!important}
+    #app-shell.shell{display:block!important;grid-template-columns:none!important}
     #app-shell.hidden{display:none!important}
     #app-shell>.sidebar{display:none!important}
-    #app-shell>main{max-width:none!important;padding:26px 3.2vw 70px!important}
-    #view-home>.hero{display:none!important}
+    #app-shell>main{display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:26px 3.2vw 70px!important}
+    #view-home>.hero{display:none!important}\n    #app-shell .topbar{display:none!important}
     #asplayer-tv-dashboard{display:block;margin:8px 0 30px}
     .as-tv-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;gap:22px}
     .as-tv-logo{font-size:clamp(26px,3vw,48px);font-weight:900;letter-spacing:1px}
@@ -111,7 +111,7 @@ js=r"""
     const tiles=document.createElement('div');tiles.className='as-tv-main';
     [['TV en Vivo','▣','live'],['Películas','▶','vod'],['Series','▤','series'],['Listas (Xtream)','☷','settings']].forEach(x=>tiles.append(make(...x,'as-tv-tile')));
     const small=document.createElement('div');small.className='as-tv-small';
-    [['Favoritos','☆','home'],['Continuar viendo','◴','home'],['Buscar','⌕','vod'],['Ajustes','⚙','settings']].forEach(x=>small.append(make(x[0]+'  '+x[1],'',x[2],'as-tv-shortcut')));
+    [['TV en vivo','▣','live'],['Películas','▶','vod'],['Series','▤','series'],['Ajustes','⚙','settings']].forEach(x=>small.append(make(x[0]+'  '+x[1],'',x[2],'as-tv-shortcut')));
     root.append(head,tiles,small);home.prepend(root);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
