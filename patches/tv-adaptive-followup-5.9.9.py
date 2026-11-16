@@ -41,4 +41,16 @@ p=Path("app/src/main/assets/features-5.9.3.js")
 s=p.read_text("utf-8")
 s=s.replace("ASPLAYER Universal 5.9.3","ASPLAYER Universal 5.9.9")
 p.write_text(s,"utf-8")
+# Remove the competing capture-phase spatial navigator injected by 5.9.3.
+# The application's existing key handler must be the single owner of web navigation.
+p=Path("app/src/main/assets/features-5.9.3.js")
+s=p.read_text("utf-8")
+start=s.index("document.addEventListener('keydown',e=>{")
+end=s.index("\\n\\nconst panel=",start) if "\\n\\nconst panel=" in s[start:] else s.index("\n\nconst panel=",start)
+old=s[start:end]
+assert "navigate(e.key)" in old and "e.stopPropagation()" in old, "unexpected key handler"
+s=s[:start]+"""// TV navigation is handled by the main application, not a competing
+// capture-phase global listener. This avoids double moves per keypress.
+"""+s[end:]
+p.write_text(s,"utf-8")
 print("Applied focus seek guard, adaptive first-run default and version display")
