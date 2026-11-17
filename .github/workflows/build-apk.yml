@@ -1,45 +1,93 @@
-name: Build ASPLAYER LibVLC APK
+name: ASPLAYER Universal — Build and Validate
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'gradle/**'
+      - '*.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/build-apk.yml'
 permissions:
   contents: read
 jobs:
-  android:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools'
-      - name: Install Android platform
-        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
-      - name: Install Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v4
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Compile Android and LibVLC
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
-      - name: Verify APK
+      - name: Verify project identity and version
+        id: version
         run: |
-          test -s app/build/outputs/apk/debug/app-debug.apk
-          sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/SHA256.txt
-          ls -lh app/build/outputs/apk/debug/app-debug.apk
-      - name: Downloadable APK
-        uses: actions/upload-artifact@v4
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, os
+          s=Path('app/build.gradle').read_text()
+          assert "applicationId 'com.alftech.asplayer.universal.vlc.final.v592'" in s
+          assert int(re.search(r'versionCode\s+(\d+)',s)[1]) >= 5917
+          assert int(re.search(r'targetSdk\s+(\d+)',s)[1]) >= 36
+          assert re.search(r'minSdk\s+21\b',s)
+          name=re.search(r"versionName\s+'([^']+)'",s)[1].split('-')[0]
+          assert re.fullmatch(r'\d+\.\d+\.\d+',name)
+          java=Path('app/src/main/java/com/alftech/asplayer/universal/MainActivity.java').read_text()
+          assert re.search(r'getAppVersion\(\)\s*\{\s*return "'+re.escape(name)+r'"',java)
+          js=Path('app/src/main/assets/features-5.9.3.js').read_text()
+          assert js.count("document.addEventListener('keydown'")==1
+          assert "stopImmediatePropagation" in js
+          assert "lockBackground" in js and "waitingEpisode" in js
+          assert "tv-catalog-layout" in js and "catalogDirection(e.key)" in js
+          assert "isAndroidTv()" in java and "movePlayerFocus(key)" in java and "selected==timeline" in java
+          assert 'profile="adaptive"' in java
+          assert "settings.bufferProfile||'adaptive'" in Path('app/src/main/assets/features-5.8.js').read_text()
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('name='+name+'\n')
+          print('Source identity, version and navigation checks passed; signing not verified.')
+          PY
+      - name: Validate JavaScript
+        run: |
+          for f in app/src/main/assets/*.js; do node --check "$f"; done
+      - name: Test actual WebView UI with keyboard and mocked media
+        run: |
+          npm install --no-save --no-package-lock playwright@1.51.1
+          node tests/test-tv-modal.cjs
+      - name: Build debug APK (not Play-install compatible)
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Verify packaged adaptive launcher resources
+        run: |
+          set -euo pipefail
+          apk="$(find app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+          test -n "$apk"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump resources "$apk" > /tmp/asplayer-resources.txt
+          grep -F 'mipmap/ic_launcher' /tmp/asplayer-resources.txt
+          grep -F 'drawable/asplayer_icon_art' /tmp/asplayer-resources.txt
+          python3 - "$apk" <<'PY'
+          import sys, zipfile
+          names=zipfile.ZipFile(sys.argv[1]).namelist()
+          assert any(n.endswith('/ic_launcher.xml') and 'anydpi' in n for n in names), 'Missing adaptive icon XML'
+          assert any(n.endswith('/asplayer_icon_art.jpg') for n in names), 'Missing full-bleed artwork'
+          print('Packaged native adaptive icon verified')
+          PY
+      - uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.8-LibVLC-APK
-          path: |
-            app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/debug/SHA256.txt
-          if-no-files-found: error
+          name: ASPLAYER-${{ steps.version.outputs.name }}-UNIVERSAL-HISTORY-LISTS-PLAYER-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
+          if-no-files-found: error
+      - name: Build unsigned Android App Bundle for future Play signing
+        run: gradle --no-daemon --stacktrace :app:bundleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ASPLAYER-${{ steps.version.outputs.name }}-UNSIGNED-AAB-REQUIRES-UPLOAD-KEY
+          path: app/build/outputs/bundle/release/*.aab
+          retention-days: 30
+          if-no-files-found: error
