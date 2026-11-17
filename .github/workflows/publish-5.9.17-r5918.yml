@@ -1,0 +1,53 @@
+name: Publicar ASPLAYER 5.9.17 revision 5918
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-5.9.17-r5918.yml'
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: release-asplayer-5-9-17-r5918
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ccb0d3f2298bc5b7606312040d716789941ab5ae
+      - name: Download verified APK from canonical build
+        uses: actions/download-artifact@v4
+        with:
+          name: ASPLAYER-5.9.17-UNIVERSAL-HISTORY-LISTS-PLAYER-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
+          run-id: 44111435969
+          github-token: ${{ github.token }}
+          path: release-dist
+      - name: Publish direct APK download
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "ccb0d3f2298bc5b7606312040d716789941ab5ae"
+          mapfile -t apks < <(find release-dist -type f -name '*.apk')
+          test "${#apks[@]}" -eq 1
+          mkdir -p release-ready
+          cp "${apks[0]}" release-ready/ASPLAYER-5.9.17-5918-Universal.apk
+          cd release-ready
+          sha256sum ASPLAYER-5.9.17-5918-Universal.apk > SHA256.txt
+          if gh release view v5.9.17-r5918 >/dev/null 2>&1; then
+            echo 'Release already exists; refusing to overwrite.'
+            exit 0
+          fi
+          existing="$(git ls-remote --tags origin refs/tags/v5.9.17-r5918)"
+          test -z "$existing"
+          gh release create v5.9.17-r5918 ASPLAYER-5.9.17-5918-Universal.apk SHA256.txt \
+            --target ccb0d3f2298bc5b7606312040d716789941ab5ae \
+            --title 'ASPLAYER Universal 5.9.17 (5918)' \
+            --notes 'APK universal de prueba para Android y Android TV. Revisión 5918: interfaz TV sin franja inferior, login con contactos informativos y optimización de inicio y reproducción LibVLC de canales. Firma debug: no es una actualización directa de la versión de Google Play.' \
+            --prerelease
+          gh release view v5.9.17-r5918 --json url,assets
