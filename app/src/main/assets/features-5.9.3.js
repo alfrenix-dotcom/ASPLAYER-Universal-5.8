@@ -67,8 +67,18 @@ function focusElement(el){
   try{el.focus({preventScroll:true});}catch(_){el.focus();}
   if(document.activeElement!==el)return false;
   el.classList.add('asplayer-593-focus');
-  el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'auto'});
+  const pane=remote&&document.body.classList.contains('asplayer-catalog-open')
+    ?el.closest('#categories,#tv-content-pane,.sidebar'):null;
+  if(pane)scrollInPane(el,pane,false);
+  else el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'auto'});
   return true;
+}
+function scrollInPane(el,pane,alignTop){
+  if(!el||!pane)return;
+  const bounds=pane.getBoundingClientRect(),rect=el.getBoundingClientRect();
+  const gap=10,top=rect.top-bounds.top-gap,bottom=rect.bottom-bounds.bottom+gap;
+  if(alignTop||top<0)pane.scrollTop+=top;
+  else if(bottom>0)pane.scrollTop+=bottom;
 }
 function shownOverlay(){
   return Array.from(document.querySelectorAll(overlaySelector)).filter(el=>el.getBoundingClientRect().width>0).pop()||null;
@@ -298,6 +308,17 @@ categoryStyle.textContent=`
   @media(max-height:500px) and (orientation:landscape){
     body:not(.asplayer-tv-dpad) #tv-category-pane,body:not(.asplayer-tv-dpad) #tv-content-pane{height:calc(100dvh - 100px)}
   }
+  /* TV catalogs use the real viewport; only the two lists scroll.
+     The header and the navigation panel remain within the TV frame. */
+  body.asplayer-tv-dpad.asplayer-catalog-open #app-shell{height:100vh;height:100dvh;min-height:0;overflow:hidden}
+  body.asplayer-tv-dpad.asplayer-catalog-open #app-shell .sidebar{height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-top:12px;padding-bottom:12px}
+  body.asplayer-tv-dpad.asplayer-catalog-open #app-shell main{height:100%;min-height:0;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;padding-top:12px;padding-bottom:12px}
+  body.asplayer-tv-dpad.asplayer-catalog-open #app-shell .topbar{flex:none;margin-bottom:10px}
+  body.asplayer-tv-dpad.asplayer-catalog-open #view-catalog{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+  body.asplayer-tv-dpad.asplayer-catalog-open #tv-catalog-layout{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);align-items:stretch}
+  body.asplayer-tv-dpad.asplayer-catalog-open #tv-category-pane,
+  body.asplayer-tv-dpad.asplayer-catalog-open #tv-content-pane{height:100%;min-height:0;max-height:none;overscroll-behavior:contain}
+  body.asplayer-tv-dpad.asplayer-catalog-open #tv-content-pane{padding-bottom:10px}
 
 `;
 document.head.appendChild(categoryStyle);
@@ -314,7 +335,7 @@ function goCategories(){
   pendingCategory=null;
   const target=selectedCategoryButton()||document.querySelector('#categories button:not([disabled])')||document.getElementById('category-expand');
   if(target){
-    document.getElementById('category-tools').scrollIntoView({block:'start',behavior:'auto'});
+    if(!remote)document.getElementById('category-tools').scrollIntoView({block:'start',behavior:'auto'});
     focusElement(target);
   }
 }
@@ -362,7 +383,7 @@ function focusCategoryResults(){
   if(first&&visible(first)){
     pendingCategory=null;
     if(remote){
-      resultBar.scrollIntoView({block:'start',behavior:'auto'});
+      scrollInPane(resultBar,contentPane,true);
       focusElement(first);
     }else{
       contentPane.scrollTop=Math.max(0,contentPane.scrollTop+resultBar.getBoundingClientRect().top-contentPane.getBoundingClientRect().top-6);
@@ -370,7 +391,7 @@ function focusCategoryResults(){
   }else if(!pendingCategory.anchored){
     pendingCategory.anchored=true;
     if(remote){
-      resultBar.scrollIntoView({block:'start',behavior:'auto'});
+      scrollInPane(resultBar,contentPane,true);
       focusElement(backCats);
     }else contentPane.scrollTop=0;
   }

@@ -6,7 +6,7 @@ android {
         applicationId 'com.alftech.asplayer.universal.vlc.final.v592'
         minSdk 21
         targetSdk 36
-        versionCode 5917
+        versionCode 5918
         versionName '5.9.17'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }

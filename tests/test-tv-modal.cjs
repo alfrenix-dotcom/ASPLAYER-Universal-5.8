@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const {pathToFileURL}=require('node:url');
 (async()=>{
-  const browser=await chromium.launch({channel:'chrome',headless:true});
+  const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{channel:'chrome'}),headless:true});
   try{
     const page=await browser.newPage({viewport:{width:1280,height:720}});
     page.on('pageerror',e=>console.log('page error',e.message));
@@ -30,7 +30,9 @@ const {pathToFileURL}=require('node:url');
         assert.equal(await info.evaluate(el=>el.tabIndex),-1);
       }
       assert.deepEqual(await p.evaluate(()=>window.supportLaunches),[]);
-      assert.equal(await p.locator('.login-contact a').count(),3);
+      assert.equal(await p.locator('.login-contact a,.login-contact button,.login-contact [tabindex],.login-contact [data-open-link]').count(),0);
+      assert.equal(await p.locator('.login-contact .login-contact-info').count(),3);
+      assert.equal(await p.locator('.nav-foot').count(),0);
       assert.equal(await p.locator('img[src="brand-logo.jpg"]').count(),3);
       await p.waitForFunction(()=>Array.from(document.querySelectorAll('img[src="brand-logo.jpg"]')).every(el=>el.complete&&el.naturalWidth===800&&el.naturalHeight===800));
       console.log('PASS: Home contact details are static and outdated version badge removed');
@@ -82,11 +84,19 @@ const {pathToFileURL}=require('node:url');
         return [];
       };
       await loadCategories('live');
+      window.ASPLAYER_REFRESH_WATCH();
     });
     await page.waitForFunction(()=>category==='all'&&document.querySelector('#cards button[data-item]'));
     const cat=page.locator('#categories [data-category="42"]');
     await cat.focus();await page.keyboard.press('Enter');
     await page.waitForFunction(()=>category==='42'&&document.activeElement.matches('#cards button[data-item]'));
+    const tvBounds=await page.evaluate(()=>{
+      const header=document.querySelector('.topbar').getBoundingClientRect();
+      const list=document.querySelector('#tv-content-pane').getBoundingClientRect();
+      return {top:header.top,bottom:list.bottom,height:innerHeight,scroll:window.scrollY};
+    });
+    assert(tvBounds.top>=0&&tvBounds.scroll===0);
+    assert(tvBounds.bottom>tvBounds.height-40&&tvBounds.bottom<=tvBounds.height+1);
     assert.equal(await page.evaluate(()=>document.activeElement.dataset.item),'0');
     assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('#categories')).flexDirection),'column');
     assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('#cards')).flexDirection),'column');
@@ -184,5 +194,41 @@ const {pathToFileURL}=require('node:url');
     assert.equal(await mobile.locator('#refresh-cat').evaluate(el=>!!el.closest('.topbar')),true);
     assert(await mobile.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2));
     console.log('PASS: compact mobile history in the existing right-hand content pane');
+    const native=await browser.newPage({viewport:{width:1280,height:720}});
+    await native.addInitScript(()=>{
+      window.nativeCalls=[];
+      window.ASPLAYER={isAndroidTv:()=>true,setUiLanguage:()=>{},setDecoderMode:()=>{},
+        playMedia:(...args)=>window.nativeCalls.push(['playMedia',...args]),
+        playMini:(...args)=>window.nativeCalls.push(['playMini',...args]),
+        stopMedia:()=>window.nativeCalls.push(['stopMedia'])};
+    });
+    await native.goto(pathToFileURL(path.resolve('app/src/main/assets/index.html')).href);
+    await native.evaluate(()=>{
+      loginPinAccepted=true;
+      SERVERS[0].base='https://example.invalid';
+      sessions[server().key]={user:'test',pass:'test',meta:{allowed_output_formats:['ts','m3u8']}};
+      active='live';settings.bufferProfile='adaptive';nativeCalls=[];
+      play({stream_id:'101',name:'Channel 101'},'live');
+    });
+    assert.deepEqual(await native.evaluate(()=>nativeCalls.map(x=>x[0])),['playMedia']);
+    assert.match(await native.evaluate(()=>nativeCalls[0][1]),/\/101\.ts$/);
+    assert.equal(await native.evaluate(()=>nativeCalls[0][2]),'adaptive');
+    assert.equal(await native.locator('#modern-player').evaluate(el=>el.classList.contains('hidden')),true);
+    assert.equal(await native.evaluate(()=>load(HISTORY_KEY,{})[sessionPrefix()].live[0].id),'101');
+    await native.evaluate(()=>{
+      window.ASPLAYER58_EVENT({type:'closed'});nativeCalls=[];
+      sessions[server().key].meta.allowed_output_formats=['m3u8'];
+      play({stream_id:'102',name:'Channel 102'},'live');
+    });
+    assert.deepEqual(await native.evaluate(()=>nativeCalls.map(x=>x[0])),['playMedia']);
+    assert.match(await native.evaluate(()=>nativeCalls[0][1]),/\/102\.m3u8$/);
+    await native.evaluate(()=>{
+      window.ASPLAYER58_EVENT({type:'closed'});nativeCalls=[];
+      sessions[server().key].meta.allowed_output_formats=['ts','m3u8'];
+      settings.bufferProfile='ultra';
+      play({stream_id:'103',name:'Channel 103'},'live');
+    });
+    assert.match(await native.evaluate(()=>nativeCalls[0][1]),/\/103\.m3u8$/);
+    console.log('PASS: channel starts once through native LibVLC, respects advertised formats and buffer preferences');
   }finally{await browser.close();}
 })().catch(err=>{console.error(err);process.exitCode=1});

@@ -1,6 +1,6 @@
 # ASPLAYER Universal · Alftech Solutions
 
-**Proyecto principal: ASPLAYER 5.9.17 (código de versión 5917).**
+**Proyecto principal: ASPLAYER 5.9.17 (código de versión 5918).**
 
 Aplicación universal para Android móvil y Android TV, con reproductor LibVLC,
 interfaz bilingüe, control remoto y pantalla táctil. El código completo se encuentra
@@ -25,6 +25,8 @@ en la rama `main`; no es necesario reconstruirlo mediante ZIP ni aplicar parches
 - LibVLC 3.7.7, modo adaptativo por defecto, controles de reproducción con DPAD, audio, subtítulos y formato.
 - Cuenta manual, sesión persistente, control parental y privacidad.
 - Contactos informativos fijos, banner sin número de versión antiguo, nuevo logo y recurso de icono adaptativo.
+
+- Revisión 5918: catálogos TV de altura completa, sin pie de versión; contactos de login sin acciones. Ruta directa LibVLC para TV en vivo, MPEG-TS/HLS según formatos admitidos y búfer inicial adaptativo de 1000 ms.
 
 ## Compilar
 

@@ -53,6 +53,11 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('name='+name+'\n')
           print('Source identity, version and navigation checks passed; signing not verified.')
           PY
+      - name: Test native live startup policy
+        run: |
+          mkdir -p "$RUNNER_TEMP/live-policy-tests"
+          javac -d "$RUNNER_TEMP/live-policy-tests" app/src/main/java/com/alftech/asplayer/universal/LivePlaybackPolicy.java tests/LivePlaybackPolicyTest.java
+          java -cp "$RUNNER_TEMP/live-policy-tests" com.alftech.asplayer.universal.LivePlaybackPolicyTest
       - name: Validate JavaScript
         run: |
           for f in app/src/main/assets/*.js; do node --check "$f"; done

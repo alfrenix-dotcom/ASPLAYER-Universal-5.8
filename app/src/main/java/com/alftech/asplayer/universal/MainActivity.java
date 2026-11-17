@@ -93,10 +93,11 @@ public final class MainActivity extends Activity {
     private boolean usingSoftwareFallback, videoOutputSeen;
     // Video filters can be costly on inexpensive TV boxes. Disabled by default.
     private String enhancement="off";
-    private int rebufferCount=0;
+    private int rebufferCount=0, liveRebufferCount=0;
     private Runnable videoWatchdog;
 
-    private long playbackAttempt, retryPosition;
+    private volatile long playbackAttempt;
+    private long retryPosition;
     private Runnable playbackDeadline;
     private LinearLayout seekRow;
     private SeekBar timeline;
@@ -117,7 +118,8 @@ public final class MainActivity extends Activity {
     private final Runnable showRebuffer = () -> {
         if(playerVisible && playbackStarted && rebufferWaiting && !playbackFailed) {
             if(android.os.SystemClock.elapsedRealtime()-lastSeekAt>3500){
-                rebufferCount=Math.min(5,rebufferCount+1);
+                if(isLive)liveRebufferCount=Math.min(5,liveRebufferCount+1);
+                else rebufferCount=Math.min(5,rebufferCount+1);
                 stableSince=0;
             }
             showLoadingFeedback();
@@ -200,8 +202,10 @@ public final class MainActivity extends Activity {
         vlcOptions.add("--skip-frames");
         vlc = new LibVLC(this,vlcOptions);
         player = new MediaPlayer(vlc);
-        player.setEventListener(e -> handler.post(() -> {
-            if(!playerVisible) return;
+        player.setEventListener(e -> {
+            final long eventAttempt=playbackAttempt;
+            handler.post(() -> {
+            if(!playerVisible || eventAttempt!=playbackAttempt) return;
             switch(e.type) {
                 case MediaPlayer.Event.Vout:
                     if(playbackFailed)break;
@@ -241,7 +245,8 @@ public final class MainActivity extends Activity {
                         handler.postDelayed(()->{if(playerVisible&&playbackAttempt==attempt)seekTo(position);},400);
                     }
                     sendEvent("ready");
-                    handler.postDelayed(this::refreshTrackMetadata,1000);
+                    // Live audio/subtitle tracks are enumerated on demand.
+                    if(firstStart&&!isLive)handler.postDelayed(this::refreshTrackMetadata,1000);
                     break;
                 case MediaPlayer.Event.Buffering:
                     if(playbackFailed)break;
@@ -259,7 +264,7 @@ public final class MainActivity extends Activity {
                         handler.postDelayed(showRebuffer,1400);
                         schedulePlaybackDeadline(25000);
                     }
-                    sendEvent("buffering");
+                    if(!isLive)sendEvent("buffering");
                     break;
                 case MediaPlayer.Event.Paused:
                     if(playbackStarted){rebufferWaiting=false;cancelPlaybackDeadline();handler.removeCallbacks(showRebuffer);hidePlaybackFeedback();}
@@ -272,7 +277,8 @@ public final class MainActivity extends Activity {
                     handlePlaybackFailure();break;
                 default: break;
             }
-        }));
+            });
+        });
     }
 
     private int dp(float value) { return Math.round(value*getResources().getDisplayMetrics().density); }
@@ -490,9 +496,10 @@ public final class MainActivity extends Activity {
         if(!playerVisible || playbackFailed)return;
         cancelVideoWatchdog();
         // Try the provider's alternate live transport before software decoding.
-        if(!triedLiveFallback && isLive && playingUrl.toLowerCase(Locale.ROOT).endsWith(".m3u8")) {
+        String alternate=isLive?LivePlaybackPolicy.alternate(activeMediaUrl):"";
+        if(!triedLiveFallback && !alternate.isEmpty() && allowedProviderUrl(alternate,true)) {
             triedLiveFallback=true;
-            startMediaInternal(playingUrl.substring(0,playingUrl.length()-5)+".ts",0);
+            startMediaInternal(alternate,0);
             return;
         }
         if((!playbackStarted||!videoOutputSeen)&&trySoftwareRecovery())return;
@@ -720,9 +727,12 @@ public final class MainActivity extends Activity {
         if("ultra".equals(profile))return 9000;
         if("adaptive".equals(profile)){
             long now=android.os.SystemClock.elapsedRealtime();
-            if(stableSince>0&&now-stableSince>90000)rebufferCount=Math.max(0,rebufferCount-1);
-            // Lower initial latency, increasing buffer on subsequent genuine stalls.
-            return Math.min(8500,(isLive?1500:2400)+(rebufferCount*1200));
+            if(stableSince>0&&now-stableSince>90000){
+                if(isLive)liveRebufferCount=Math.max(0,liveRebufferCount-1);
+                else rebufferCount=Math.max(0,rebufferCount-1);
+            }
+            // Live adapts independently from VOD, so a movie stall cannot slow the first channel.
+            return LivePlaybackPolicy.adaptiveCache(isLive,isLive?liveRebufferCount:rebufferCount);
         }
         return 4000;
     }
@@ -759,18 +769,20 @@ public final class MainActivity extends Activity {
             videoOutputSeen=false;
             activeMediaUrl=url;
             if(playerVisible)player.stop();
-            if(attached) {
+            if(attached && (!playerVisible || !isLive || usingSoftwareFallback)) {
                 player.detachViews();
                 attached=false;
             }
             // A visible surface must be ready BEFORE attaching LibVLC's video output.
             video.setVisibility(View.VISIBLE);
             video.requestLayout();
-            player.attachViews(video,null,true,false);
-            attached=true;
+            if(!attached){
+                player.attachViews(video,null,true,false);
+                attached=true;
+            }
             Media media=new Media(vlc,Uri.parse(url));
             media.setHWDecoderEnabled(!useSoftwareDecoder(),false);
-            if("sharp".equals(enhancement)) {
+            if(!isLive&&"sharp".equals(enhancement)) {
                 // Native VLC sharpen; this is NOT AI super-resolution, and some
                 // hardware video pipelines may ignore the filter.
                 media.addOption(":video-filter=sharpen");
@@ -794,7 +806,7 @@ public final class MainActivity extends Activity {
             handler.removeCallbacks(showRebuffer);
             video.setVisibility(View.VISIBLE);
             showLoadingFeedback();
-            schedulePlaybackDeadline(30000);
+            schedulePlaybackDeadline(LivePlaybackPolicy.startupTimeout(isLive,profile,triedLiveFallback,url));
             if(remotePlayer())focusRemote(feedbackClose);else video.requestFocus();
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             getWindow().getDecorView().setSystemUiVisibility(IMMERSIVE);
@@ -805,8 +817,12 @@ public final class MainActivity extends Activity {
             timelineDragging=false;
             if(seekRow!=null)seekRow.setVisibility(View.GONE);
             if(timeline!=null)timeline.setProgress(0);
-            handler.postDelayed(progressTicker,5000);
-            handler.postDelayed(timelineTicker,350);
+            // No seek/progress polling is needed for a live channel.
+            if(!isLive){
+                handler.postDelayed(progressTicker,5000);
+                handler.postDelayed(timelineTicker,350);
+            }
+            if(web!=null)web.setVisibility(isLive?View.INVISIBLE:View.VISIBLE);
             player.play();
             if(!remotePlayer())showControls();
         } catch(Exception error) {
@@ -820,7 +836,7 @@ public final class MainActivity extends Activity {
     }
     private void sendEvent(JSONObject obj) { evaluate("window.ASPLAYER58_EVENT&&window.ASPLAYER58_EVENT("+obj+");"); }
     private void sendPosition(boolean ended) {
-        if(!playerVisible || player==null)return;
+        if(!playerVisible || player==null || isLive)return;
         try {
             JSONObject e=new JSONObject();
             e.put("type","position");e.put("position",Math.max(0,player.getTime()));
@@ -848,12 +864,16 @@ public final class MainActivity extends Activity {
         handler.removeCallbacks(progressTicker);
         handler.removeCallbacks(timelineTicker);
         timelineDragging=false;
-        if(player!=null)player.stop();
+        if(player!=null){
+            player.stop();
+            if(attached){player.detachViews();attached=false;}
+        }
         if(controls!=null)controls.setVisibility(View.GONE);
         if(video!=null)video.setVisibility(View.GONE);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().getDecorView().setSystemUiVisibility(0);
         root.requestApplyInsets();
+        if(web!=null)web.setVisibility(View.VISIBLE);
         if(notifyWeb){web.requestFocus();sendEvent("closed");}
     }
     private static Object invokeNoArgs(Object o,String name) {

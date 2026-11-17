@@ -12,6 +12,15 @@ function syncNativeLanguage(){try{bridge.setUiLanguage(lang)}catch(_){}}
 syncNativeLanguage();
 let currentItem=null,currentMode=null,currentId='',currentPrefix='',nativeVisible=false;
 const idOf=item=>String(item?.stream_id??item?.series_id??item?.id??item?.name??'');
+function liveExtension(account,profile){
+  const advertised=Array.isArray(account?.meta?.allowed_output_formats)
+    ?account.meta.allowed_output_formats.map(value=>String(value).toLowerCase()):[];
+  const ts=advertised.includes('ts')||advertised.includes('mpegts');
+  const hls=advertised.includes('m3u8')||advertised.includes('hls');
+  if(ts&&!hls)return 'ts';
+  if(hls&&!ts)return 'm3u8';
+  return profile==='adaptive'||profile==='fast'?'ts':'m3u8';
+}
 const oldPlay=play;
 play=function(item,mode){
   currentItem=item;
@@ -19,6 +28,29 @@ play=function(item,mode){
   currentId=idOf(item);
   currentPrefix=sessionPrefix();
   syncNativeLanguage();
+  if(mode==='live'){
+    const account=session();
+    if(!account)return toast(tr('noSession'));
+    if(!item?.stream_id)return toast(tr('error'));
+    const profile=settings.bufferProfile||'adaptive',ext=liveExtension(account,profile);
+    const url=server().base+'/live/'+encodeURIComponent(account.user)+'/'+encodeURIComponent(account.pass)+'/'+encodeURIComponent(item.stream_id)+'.'+ext;
+    // Native LibVLC is already initialized. Bypass the retired mini-player,
+    // HTML video element and its competing legacy stream-retry timers.
+    if(nativeVisible||!get('modern-player').classList.contains('hidden'))stopPlayer();
+    playback={url,ext,mode:'live',title:String(item.name||'Live TV')};
+    get('player-choice').classList.add('hidden');
+    get('modern-player').classList.add('hidden');
+    try{
+      bridge.playMedia(url,profile,playAspect,audioPref,subsPref,0);
+      nativeVisible=true;
+    }catch(_){
+      nativeVisible=false;
+      return oldPlay(item,mode);
+    }
+    rememberPlay('live',item);
+    window.ASPLAYER_REFRESH_WATCH?.();
+    return;
+  }
   try{bridge.setPlaybackOptions(settings.bufferProfile||'adaptive',playAspect,audioPref,subsPref)}catch(_){ }
   return oldPlay(item,mode);
 };
