@@ -9,6 +9,31 @@ const {pathToFileURL}=require('node:url');
     page.on('pageerror',e=>console.log('page error',e.message));
     await page.addInitScript(()=>{window.ASPLAYER={isAndroidTv:()=>true};});
     await page.goto(pathToFileURL(path.resolve('app/src/main/assets/index.html')).href);
+    const verifyHome=async(p,touch=false)=>{
+      await p.evaluate(()=>{
+        document.querySelector('#auth-screen').classList.add('hidden');
+        document.querySelector('#app-shell').classList.remove('hidden');
+        document.querySelector('#view-home').classList.remove('hidden');
+        document.querySelector('#view-catalog').classList.add('hidden');
+        window.supportLaunches=[];
+        window.ASPLAYER.openLink=url=>window.supportLaunches.push(url);
+      });
+      const contacts=p.locator('#view-home .contact-priority');
+      assert.equal(await contacts.locator('a,button,input,select,textarea,[tabindex],[role="button"],[data-open-link]').count(),0);
+      assert.equal(await contacts.locator('.contact-info').count(),3);
+      assert.match(await contacts.innerText(),/WhatsApp: \+1 236-702-1555/);
+      assert.match(await contacts.innerText(),/company@alftechsolutions\.com/);
+      assert.match(await contacts.innerText(),/www\.alftechsolutions\.com/);
+      assert.doesNotMatch(await p.locator('#view-home .hero').innerText(),/ASPLAYER\s+\d+\.\d+/);
+      for(const info of await contacts.locator('.contact-info').all()){
+        if(touch)await info.tap();else await info.click();
+        assert.equal(await info.evaluate(el=>el.tabIndex),-1);
+      }
+      assert.deepEqual(await p.evaluate(()=>window.supportLaunches),[]);
+      assert.equal(await p.locator('.login-contact a').count(),3);
+      console.log('PASS: Home contact details are static and outdated version badge removed');
+    };
+    await verifyHome(page);
     await page.evaluate(()=>{
       document.querySelector('#auth-screen').classList.add('hidden');
       document.querySelector('#app-shell').classList.remove('hidden');
@@ -106,6 +131,7 @@ const {pathToFileURL}=require('node:url');
     const mobile=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
     await mobile.addInitScript(()=>{window.ASPLAYER={isAndroidTv:()=>false};});
     await mobile.goto(pathToFileURL(path.resolve('app/src/main/assets/index.html')).href);
+    await verifyHome(mobile,true);
     await mobile.evaluate(()=>{cached=async()=>({info:{}});showMovie({name:'Movie',stream_id:'m1'});});
     assert.equal(await mobile.locator('body').evaluate(el=>el.classList.contains('asplayer-tv-dpad')),false);
     assert.equal(await mobile.locator('#app-shell').getAttribute('inert'),null);
