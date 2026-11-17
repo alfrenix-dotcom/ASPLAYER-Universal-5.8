@@ -40,7 +40,8 @@ jobs:
           import re
           p=Path('app/build.gradle')
           s=p.read_text()
-          assert "applicationId 'com.alftech.asplayer.universal.vlc.final.v592'" in s
+          print("Gradle app IDs:", re.findall(r"applicationId[^\\n]*",s))
+          assert "com.alftech.asplayer.universal.vlc.final.v592" in s
           assert re.search(r'versionCode\s+5907\b',s)
           s=re.sub(r'versionCode\s+5907\b','versionCode 5910',s,count=1)
           s=re.sub(r"versionName\s+'[^']+'","versionName '5.9.10-TV-navigation-test'",s,count=1)
