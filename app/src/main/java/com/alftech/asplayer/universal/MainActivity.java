@@ -115,6 +115,7 @@ public final class MainActivity extends Activity {
     private MediaPlayer player;
     private boolean attached;
     private boolean playerVisible;
+    private boolean isLive;
     private final Runnable showRebuffer = () -> {
         if(playerVisible && playbackStarted && rebufferWaiting && !playbackFailed) {
             if(android.os.SystemClock.elapsedRealtime()-lastSeekAt>3500){
@@ -125,7 +126,6 @@ public final class MainActivity extends Activity {
             showLoadingFeedback();
         }
     };
-    private boolean isLive;
     private boolean triedLiveFallback;
     private String playingUrl="";
     private String profile="adaptive", pictureMode="cover", audioLanguage="auto", subtitleLanguage="off";
