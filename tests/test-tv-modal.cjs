@@ -31,6 +31,8 @@ const {pathToFileURL}=require('node:url');
       }
       assert.deepEqual(await p.evaluate(()=>window.supportLaunches),[]);
       assert.equal(await p.locator('.login-contact a').count(),3);
+      assert.equal(await p.locator('img[src="brand-logo.jpg"]').count(),3);
+      await p.waitForFunction(()=>Array.from(document.querySelectorAll('img[src="brand-logo.jpg"]')).every(el=>el.complete&&el.naturalWidth===800&&el.naturalHeight===800));
       console.log('PASS: Home contact details are static and outdated version badge removed');
     };
     await verifyHome(page);
