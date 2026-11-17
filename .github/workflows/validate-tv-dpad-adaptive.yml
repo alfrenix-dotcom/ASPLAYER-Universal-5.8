@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 01c2b6643e9463ec9a0e1bce525269ec078a2a16
+          ref: 575e9f5b6d570e8314862e9743571fe2d0f1f7ec
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -42,6 +42,7 @@ jobs:
           python3 patches/privacy-link-5.9.7.py
           python3 patches/adaptive-default-tv.py
           python3 patches/tv-dpad-modal-focus.py
+          python3 patches/tv-catalog-player-5.9.12.py
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -52,8 +53,8 @@ jobs:
           assert re.search(r'versionCode\s+5907\b',s), "Expected original 5.9.7 versionCode 5907"
           assert re.search(r'targetSdk\s+36\b',s), "Expected API 36"
           assert re.search(r'minSdk\s+21\b',s), "Unexpected minimum SDK"
-          s=re.sub(r'versionCode\s+5907\b','versionCode 5911',s,count=1)
-          s=re.sub(r"versionName\s+'[^']+'","versionName '5.9.11-TV-dialog-test'",s,count=1)
+          s=re.sub(r'versionCode\s+5907\b','versionCode 5912',s,count=1)
+          s=re.sub(r"versionName\s+'[^']+'","versionName '5.9.12-TV-accessibility-test'",s,count=1)
           p.write_text(s)
           js=Path('app/src/main/assets/features-5.9.3.js').read_text()
           assert js.count("document.addEventListener('keydown'")==1
@@ -64,11 +65,15 @@ jobs:
           java=Path('app/src/main/java/com/alftech/asplayer/universal/MainActivity.java')
           j=java.read_text()
           assert "isAndroidTv()" in j
-          j=re.sub(r'(getAppVersion\(\)\s*\{\s*return ")[^"]+(")',r'\g<1>5.9.11\2',j)
+          assert "movePlayerFocus(key)" in j and "selected==timeline" in j
+          assert "profile=\"adaptive\"" in j
+          assert "tv-catalog-layout" in js and "catalogDirection(e.key)" in js
+          assert "settings.bufferProfile||'adaptive'" in Path('app/src/main/assets/features-5.8.js').read_text()
+          j=re.sub(r'(getAppVersion\(\)\s*\{\s*return ")[^"]+(")',r'\g<1>5.9.12\2',j)
           java.write_text(j)
           for asset in Path('app/src/main/assets').glob('*'):
               if asset.suffix in ('.html','.js'):
-                  asset.write_text(asset.read_text().replace('ASPLAYER Universal 5.9.7','ASPLAYER Universal 5.9.11'))
+                  asset.write_text(asset.read_text().replace('ASPLAYER Universal 5.9.7','ASPLAYER Universal 5.9.12'))
           print('Navigation handler count and app identity checked; signature NOT verified')
           PY
       - name: Validate JavaScript
@@ -82,7 +87,15 @@ jobs:
         run: gradle --no-daemon --stacktrace :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.9.11-TV-DIALOG-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
+          name: ASPLAYER-5.9.12-TV-LISTS-PLAYER-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
           path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+          if-no-files-found: error
+      - name: Build unsigned Android App Bundle for future Play signing
+        run: gradle --no-daemon --stacktrace :app:bundleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ASPLAYER-5.9.12-UNSIGNED-AAB-REQUIRES-UPLOAD-KEY
+          path: app/build/outputs/bundle/release/*.aab
           retention-days: 14
           if-no-files-found: error
