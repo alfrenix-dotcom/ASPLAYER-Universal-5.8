@@ -9,6 +9,8 @@ jobs:
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: fix/asplayer-tv-dpad-adaptive-clean
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
