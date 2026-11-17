@@ -80,5 +80,36 @@ const {pathToFileURL}=require('node:url');
     await mobile.locator('#detail-close').tap();
     assert(await mobile.locator('#details-modal').evaluate(el=>el.classList.contains('hidden')));
     console.log('PASS: touch mobile retains normal dialog');
+    await mobile.evaluate(async()=>{
+      document.querySelector('#auth-screen').classList.add('hidden');
+      document.querySelector('#app-shell').classList.remove('hidden');
+      document.querySelector('#mobilebar').classList.remove('hidden');
+      document.querySelector('#view-home').classList.add('hidden');
+      document.querySelector('#view-catalog').classList.remove('hidden');
+      active='live';category='none';operation++;
+      cached=async(action,extra)=>{
+        if(action==='get_live_categories')return Array.from({length:40},(_,i)=>({category_id:String(i+1),category_name:'Category '+(i+1)}));
+        if(action==='get_live_streams'){
+          await new Promise(r=>setTimeout(r,200));
+          return Array.from({length:20},(_,i)=>({stream_id:String(i+1),category_id:extra?.category_id||'all',name:'Channel '+(i+1)}));
+        }
+        return [];
+      };
+      await loadCategories('live');
+    });
+    await mobile.waitForFunction(()=>category==='all'&&document.querySelector('#cards button[data-item]'));
+    assert.equal(await mobile.locator('#tv-catalog-layout').evaluate(el=>getComputedStyle(el).display),'grid');
+    assert.equal(await mobile.locator('#categories').evaluate(el=>getComputedStyle(el).flexDirection),'column');
+    assert.equal(await mobile.locator('#cards').evaluate(el=>getComputedStyle(el).flexDirection),'column');
+    await mobile.locator('#tv-content-pane').evaluate(el=>el.scrollTop=el.scrollHeight);
+    await mobile.locator('#categories [data-category="23"]').tap();
+    await mobile.waitForFunction(()=>category==='23'&&document.querySelector('#cards button[data-item]'));
+    await mobile.waitForFunction(()=>document.querySelector('#tv-content-pane').scrollTop<150);
+    assert.equal(await mobile.locator('body').evaluate(el=>el.classList.contains('asplayer-tv-dpad')),false);
+    assert.equal(await mobile.evaluate(()=>document.querySelector('#cards').contains(document.activeElement)),false);
+    assert(await mobile.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2));
+    await mobile.setViewportSize({width:844,height:390});
+    assert.equal(await mobile.locator('#tv-catalog-layout').evaluate(el=>getComputedStyle(el).display),'grid');
+    console.log('PASS: vertical lists on touch phone, scroll to selected category results, no keyboard focus capture, portrait and landscape layouts');
   }finally{await browser.close();}
 })().catch(err=>{console.error(err);process.exitCode=1});
