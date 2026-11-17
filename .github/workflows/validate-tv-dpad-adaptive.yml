@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ce26ee391fbc50cb2e93f2dd659bc354aa9481e2
+          ref: 810aa521c28bebed10acf8b9bc39456a2d094751
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -45,6 +45,7 @@ jobs:
           python3 patches/tv-catalog-player-5.9.12.py
           python3 patches/mobile-vertical-catalog-5.9.13.py
           python3 patches/watch-history-categories-5.9.14.py
+          python3 patches/home-information-5.9.15.py
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -55,8 +56,8 @@ jobs:
           assert re.search(r'versionCode\s+5907\b',s), "Expected original 5.9.7 versionCode 5907"
           assert re.search(r'targetSdk\s+36\b',s), "Expected API 36"
           assert re.search(r'minSdk\s+21\b',s), "Unexpected minimum SDK"
-          s=re.sub(r'versionCode\s+5907\b','versionCode 5914',s,count=1)
-          s=re.sub(r"versionName\s+'[^']+'","versionName '5.9.14-TV-accessibility-test'",s,count=1)
+          s=re.sub(r'versionCode\s+5907\b','versionCode 5915',s,count=1)
+          s=re.sub(r"versionName\s+'[^']+'","versionName '5.9.15-TV-accessibility-test'",s,count=1)
           p.write_text(s)
           js=Path('app/src/main/assets/features-5.9.3.js').read_text()
           assert js.count("document.addEventListener('keydown'")==1
@@ -71,11 +72,11 @@ jobs:
           assert "profile=\"adaptive\"" in j
           assert "tv-catalog-layout" in js and "catalogDirection(e.key)" in js
           assert "settings.bufferProfile||'adaptive'" in Path('app/src/main/assets/features-5.8.js').read_text()
-          j=re.sub(r'(getAppVersion\(\)\s*\{\s*return ")[^"]+(")',r'\g<1>5.9.14\2',j)
+          j=re.sub(r'(getAppVersion\(\)\s*\{\s*return ")[^"]+(")',r'\g<1>5.9.15\2',j)
           java.write_text(j)
           for asset in Path('app/src/main/assets').glob('*'):
               if asset.suffix in ('.html','.js'):
-                  asset.write_text(asset.read_text().replace('ASPLAYER Universal 5.9.7','ASPLAYER Universal 5.9.14'))
+                  asset.write_text(asset.read_text().replace('ASPLAYER Universal 5.9.7','ASPLAYER Universal 5.9.15'))
           print('Navigation handler count and app identity checked; signature NOT verified')
           PY
       - name: Validate JavaScript
@@ -89,7 +90,7 @@ jobs:
         run: gradle --no-daemon --stacktrace :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.9.14-UNIVERSAL-HISTORY-LISTS-PLAYER-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
+          name: ASPLAYER-5.9.15-UNIVERSAL-HISTORY-LISTS-PLAYER-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
           if-no-files-found: error
@@ -97,7 +98,7 @@ jobs:
         run: gradle --no-daemon --stacktrace :app:bundleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.9.14-UNSIGNED-AAB-REQUIRES-UPLOAD-KEY
+          name: ASPLAYER-5.9.15-UNSIGNED-AAB-REQUIRES-UPLOAD-KEY
           path: app/build/outputs/bundle/release/*.aab
           retention-days: 14
           if-no-files-found: error
