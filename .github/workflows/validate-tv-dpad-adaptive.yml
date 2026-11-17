@@ -1,6 +1,10 @@
 name: ASPLAYER TV D-pad and Adaptive validation
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/validate-tv-dpad-adaptive.yml'
 permissions:
   contents: read
 jobs:
