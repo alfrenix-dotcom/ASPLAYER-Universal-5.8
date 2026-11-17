@@ -43,6 +43,34 @@ const {pathToFileURL}=require('node:url');
     await page.keyboard.press('Enter');await page.waitForFunction(()=>window.playResults.length===2);
     assert.deepEqual(await page.evaluate(()=>window.playResults),[['m1','vod'],['ep2','series']]);
     console.log('PASS: TV movie autofocus, directional focus trap, back restore, play and async episodes');
+    await page.evaluate(async()=>{
+      active='live';category='none';operation++;
+      cached=async(action,extra)=>{
+        if(action==='get_live_categories')return Array.from({length:62},(_,i)=>({category_id:String(i+1),category_name:'Category '+(i+1)}));
+        if(action==='get_live_streams'){
+          await new Promise(r=>setTimeout(r,200));
+          const id=extra?.category_id||'all';
+          return Array.from({length:5},(_,i)=>({stream_id:String(i+1),category_id:id,name:'Channel '+id+' '+(i+1)}));
+        }
+        return [];
+      };
+      await loadCategories('live');
+    });
+    await page.waitForFunction(()=>category==='all'&&document.querySelector('#cards button[data-item]'));
+    const cat=page.locator('#categories [data-category="42"]');
+    await cat.focus();await page.keyboard.press('Enter');
+    await page.waitForFunction(()=>category==='42'&&document.activeElement.matches('#cards button[data-item]'));
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.item),'0');
+    assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('#categories')).flexDirection),'column');
+    assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('#cards')).flexDirection),'column');
+    await page.keyboard.press('ArrowDown');assert.equal(await page.evaluate(()=>document.activeElement.dataset.item),'1');
+    await page.keyboard.press('ArrowLeft');assert.equal(await page.evaluate(()=>document.activeElement.dataset.category),'42');
+    await page.keyboard.press('ArrowDown');assert.equal(await page.evaluate(()=>document.activeElement.dataset.category),'43');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(()=>category==='43'&&document.activeElement.matches('#cards button[data-item]'));
+    await page.evaluate(()=>window.ASPLAYER_BACK());
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.category),'43');
+    console.log('PASS: default All, vertical category and content lists, async category focus handoff, return to selected category');
     const mobile=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
     await mobile.addInitScript(()=>{window.ASPLAYER={isAndroidTv:()=>false};});
     await mobile.goto(pathToFileURL(path.resolve('app/src/main/assets/index.html')).href);
