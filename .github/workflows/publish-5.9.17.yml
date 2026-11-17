@@ -1,0 +1,52 @@
+name: Publicar ASPLAYER 5.9.17 APK de prueba
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-5.9.17.yml'
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: release-asplayer-5-9-17
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 395252c57dc4232ecfec987aa955da5e6d58aa66
+      - name: Download verified APK from canonical build
+        uses: actions/download-artifact@v4
+        with:
+          name: ASPLAYER-5.9.17-UNIVERSAL-HISTORY-LISTS-PLAYER-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
+          run-id: 44104671882
+          github-token: ${{ github.token }}
+          path: release-dist
+      - name: Prepare and publish permanent direct download
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "395252c57dc4232ecfec987aa955da5e6d58aa66"
+          mapfile -t apks < <(find release-dist -type f -name '*.apk')
+          test "${#apks[@]}" -eq 1
+          mkdir -p release-ready
+          cp "${apks[0]}" release-ready/ASPLAYER-5.9.17-Universal.apk
+          cd release-ready
+          sha256sum ASPLAYER-5.9.17-Universal.apk > SHA256.txt
+          if gh release view v5.9.17 >/dev/null 2>&1; then
+            echo 'Release already exists; refusing to overwrite.'
+            exit 0
+          fi
+          existing="$(git ls-remote --tags origin refs/tags/v5.9.17)"
+          test -z "$existing"
+          gh release create v5.9.17 ASPLAYER-5.9.17-Universal.apk SHA256.txt \
+            --target 395252c57dc4232ecfec987aa955da5e6d58aa66 \
+            --title 'ASPLAYER Universal 5.9.17' \
+            --notes 'APK universal de prueba para Android y Android TV. Icono adaptativo, LibVLC y mejoras de navegación. Firma debug: no es una actualización directa de la versión de Google Play.' \
+            --prerelease
