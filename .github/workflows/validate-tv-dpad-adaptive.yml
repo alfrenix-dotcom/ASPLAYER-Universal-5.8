@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: e14f23b23b3f8a449792da73597bf9e0ae4b4a5d
+          ref: 69225f6497c5462297f76c23d6b3ea97a8675a5e
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -47,6 +47,7 @@ jobs:
           python3 patches/watch-history-categories-5.9.14.py
           python3 patches/home-information-5.9.15.py
           python3 patches/branding-5.9.16.py
+          python3 patches/adaptive-icon-5.9.17.py
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -57,8 +58,8 @@ jobs:
           assert re.search(r'versionCode\s+5907\b',s), "Expected original 5.9.7 versionCode 5907"
           assert re.search(r'targetSdk\s+36\b',s), "Expected API 36"
           assert re.search(r'minSdk\s+21\b',s), "Unexpected minimum SDK"
-          s=re.sub(r'versionCode\s+5907\b','versionCode 5916',s,count=1)
-          s=re.sub(r"versionName\s+'[^']+'","versionName '5.9.16-TV-accessibility-test'",s,count=1)
+          s=re.sub(r'versionCode\s+5907\b','versionCode 5917',s,count=1)
+          s=re.sub(r"versionName\s+'[^']+'","versionName '5.9.17-TV-accessibility-test'",s,count=1)
           p.write_text(s)
           js=Path('app/src/main/assets/features-5.9.3.js').read_text()
           assert js.count("document.addEventListener('keydown'")==1
@@ -73,11 +74,11 @@ jobs:
           assert "profile=\"adaptive\"" in j
           assert "tv-catalog-layout" in js and "catalogDirection(e.key)" in js
           assert "settings.bufferProfile||'adaptive'" in Path('app/src/main/assets/features-5.8.js').read_text()
-          j=re.sub(r'(getAppVersion\(\)\s*\{\s*return ")[^"]+(")',r'\g<1>5.9.16\2',j)
+          j=re.sub(r'(getAppVersion\(\)\s*\{\s*return ")[^"]+(")',r'\g<1>5.9.17\2',j)
           java.write_text(j)
           for asset in Path('app/src/main/assets').glob('*'):
               if asset.suffix in ('.html','.js'):
-                  asset.write_text(asset.read_text().replace('ASPLAYER Universal 5.9.7','ASPLAYER Universal 5.9.16'))
+                  asset.write_text(asset.read_text().replace('ASPLAYER Universal 5.9.7','ASPLAYER Universal 5.9.17'))
           print('Navigation handler count and app identity checked; signature NOT verified')
           PY
       - name: Validate JavaScript
@@ -89,9 +90,24 @@ jobs:
           node tests/test-tv-modal.cjs
       - name: Build debug APK (not Play-install compatible)
         run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Verify packaged adaptive launcher resources
+        run: |
+          set -euo pipefail
+          apk="$(find app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+          test -n "$apk"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump resources "$apk" > /tmp/asplayer-resources.txt
+          grep -F 'mipmap/ic_launcher' /tmp/asplayer-resources.txt
+          grep -F 'drawable/asplayer_icon_art' /tmp/asplayer-resources.txt
+          python3 - "$apk" <<'PY'
+          import sys, zipfile
+          names=zipfile.ZipFile(sys.argv[1]).namelist()
+          assert any(n.endswith('/ic_launcher.xml') and 'anydpi' in n for n in names), 'Missing adaptive icon XML'
+          assert any(n.endswith('/asplayer_icon_art.jpg') for n in names), 'Missing full-bleed artwork'
+          print('Packaged native adaptive icon verified')
+          PY
       - uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.9.16-UNIVERSAL-HISTORY-LISTS-PLAYER-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
+          name: ASPLAYER-5.9.17-UNIVERSAL-HISTORY-LISTS-PLAYER-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
           if-no-files-found: error
@@ -99,7 +115,7 @@ jobs:
         run: gradle --no-daemon --stacktrace :app:bundleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-5.9.16-UNSIGNED-AAB-REQUIRES-UPLOAD-KEY
+          name: ASPLAYER-5.9.17-UNSIGNED-AAB-REQUIRES-UPLOAD-KEY
           path: app/build/outputs/bundle/release/*.aab
           retention-days: 14
           if-no-files-found: error
