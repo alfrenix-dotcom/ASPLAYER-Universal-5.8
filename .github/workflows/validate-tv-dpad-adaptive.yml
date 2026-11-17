@@ -23,6 +23,8 @@ jobs:
       - name: Restore base and apply sequential patches
         run: |
           set -euo pipefail
+          # Use the original 5.9.7 reconstruction sequence, not a mixed source tree.
+          python3 -c "import shutil; shutil.rmtree('app', ignore_errors=True)"
           unzip -qo sources/ASPLAYER-5.8.2-Complete-Project.zip -d .
           sed -i 's/compileSdk 35/compileSdk 36/' app/build.gradle
           sed -i 's/import android.app.ActivityNotFoundException;/import android.content.ActivityNotFoundException;/' app/src/main/java/com/alftech/asplayer/universal/MainActivity.java
@@ -30,6 +32,7 @@ jobs:
           python3 patches/loading-maintenance-5.9.1.py
           python3 patches/video-recovery-5.9.2.py
           python3 patches/upgrade-5.9.3.py
+          python3 patches/playstore-api36.py
           python3 patches/manual-server-5.9.5.py
           python3 patches/persistent-session-5.9.6.py
           python3 patches/privacy-link-5.9.7.py
@@ -40,9 +43,11 @@ jobs:
           import re
           p=Path('app/build.gradle')
           s=p.read_text()
-          print("Gradle app IDs:", re.findall(r"applicationId[^\\n]*",s))
-          assert "com.alftech.asplayer.universal.vlc.final.v592" in s
-          assert re.search(r'versionCode\s+5907\b',s)
+          print("Base Gradle identity:", [line.strip() for line in s.splitlines() if any(k in line for k in ("applicationId", "versionCode", "versionName", "targetSdk", "minSdk"))])
+          assert "applicationId 'com.alftech.asplayer.universal.vlc.final.v592'" in s, "Unexpected application ID"
+          assert re.search(r'versionCode\s+5907\b',s), "Expected original 5.9.7 versionCode 5907"
+          assert re.search(r'targetSdk\s+36\b',s), "Expected API 36"
+          assert re.search(r'minSdk\s+21\b',s), "Unexpected minimum SDK"
           s=re.sub(r'versionCode\s+5907\b','versionCode 5910',s,count=1)
           s=re.sub(r"versionName\s+'[^']+'","versionName '5.9.10-TV-navigation-test'",s,count=1)
           p.write_text(s)
@@ -55,9 +60,10 @@ jobs:
         run: |
           for f in app/src/main/assets/*.js; do node --check "$f"; done
       - name: Build debug APK (not Play-install compatible)
-        run: gradle --no-daemon :app:assembleDebug
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: ASPLAYER-5.9.10-TV-DPAD-ADAPTIVE-DEBUG-NOT-PLAY-UPDATE
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
+          if-no-files-found: error
