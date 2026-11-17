@@ -85,9 +85,16 @@ jobs:
           if-no-files-found: error
       - name: Build unsigned Android App Bundle for future Play signing
         run: gradle --no-daemon --stacktrace :app:bundleRelease
+      - name: Validate production bundle and 16 KiB native libraries
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --silent --show-error 'https://github.com/google/bundletool/releases/download/1.18.2/bundletool-all-1.18.2.jar' -o /tmp/bundletool.jar
+          bundle="$(find app/build/outputs/bundle/release -name '*.aab' -print -quit)"
+          test -n "$bundle"
+          python3 tests/validate-play-bundle.py "$bundle" /tmp/bundletool.jar
       - uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-${{ steps.version.outputs.name }}-UNSIGNED-AAB-REQUIRES-UPLOAD-KEY
+          name: ASPLAYER-${{ steps.version.outputs.name }}-PLAY-RELEASE-UNSIGNED-REQUIRES-UPLOAD-KEY
           path: app/build/outputs/bundle/release/*.aab
           retention-days: 30
           if-no-files-found: error
