@@ -1,0 +1,53 @@
+name: Publicar ASPLAYER 5.9.18 revision 5919
+on:
+  workflow_dispatch:
+  push:
+    branches: [development/5.9.18-adaptive-pagination]
+    paths:
+      - '.github/workflows/publish-5.9.18-r5919.yml'
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: release-asplayer-5-9-18-r5919
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c855c34d25672b60747a9e57c604999c94d11784
+      - name: Download verified APK from canonical build
+        uses: actions/download-artifact@v4
+        with:
+          name: ASPLAYER-5.9.18-UNIVERSAL-AUTO-PAGINATION-DEBUG-NOT-PLAY-UPDATE
+          run-id: 44248841054
+          github-token: ${{ github.token }}
+          path: release-dist
+      - name: Publish direct APK download
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "c855c34d25672b60747a9e57c604999c94d11784"
+          mapfile -t apks < <(find release-dist -type f -name '*.apk')
+          test "${#apks[@]}" -eq 1
+          mkdir -p release-ready
+          cp "${apks[0]}" release-ready/ASPLAYER-5.9.18-5919-Universal.apk
+          cd release-ready
+          sha256sum ASPLAYER-5.9.18-5919-Universal.apk > SHA256.txt
+          if gh release view v5.9.18-r5919 >/dev/null 2>&1; then
+            echo 'Release already exists; refusing to overwrite.'
+            exit 0
+          fi
+          existing="$(git ls-remote --tags origin refs/tags/v5.9.18-r5919)"
+          test -z "$existing"
+          gh release create v5.9.18-r5919 ASPLAYER-5.9.18-5919-Universal.apk SHA256.txt \
+            --target c855c34d25672b60747a9e57c604999c94d11784 \
+            --title 'ASPLAYER Universal 5.9.18 (5919)' \
+            --notes 'APK universal de prueba para Android y Android TV. Revisión 5919: carga automática por bloques, navegación DPAD y memoria de interfaz optimizada. Pruebas en Android móvil y Android TV confirmadas. Firma debug: no es una actualización directa de la versión de Google Play.' \
+            --prerelease
+          gh release view v5.9.18-r5919 --json url,assets
