@@ -344,19 +344,18 @@ function catalogDirection(key){
   const a=document.activeElement;
   const categories=Array.from(categoryList.querySelectorAll('button[data-category]')).filter(visible);
   const titles=Array.from(cards.querySelectorAll('button[data-item]')).filter(visible);
-  const loadMore=document.getElementById('loadmore');
+  const pager=window.ASPLAYER_PAGER;
   const currentCategory=selectedCategoryButton()||categories[0];
   if(a.closest('.sidebar')&&key==='ArrowRight'){focusElement(currentCategory);return true;}
   if(categoryList.contains(a)){
-    if(key==='ArrowRight'){focusElement(titles[0]||backCats);return true;}
+    if(key==='ArrowRight'){focusElement(pager?.active()?pager.at(0):titles[0]||backCats);return true;}
     if(key==='ArrowLeft'){
       focusElement(document.querySelector('.sidebar [data-nav="'+active+'"]'));return true;
     }
     const n=categories.indexOf(a)+(key==='ArrowUp'?-1:1);
     if(categories[n])focusElement(categories[n]);return true;
   }
-  if(a===backCats&&key==='ArrowDown'){focusElement(titles[0]);return true;}
-  if(a===loadMore&&key==='ArrowUp'){focusElement(titles[titles.length-1]);return true;}
+  if(a===backCats&&key==='ArrowDown'){focusElement(pager?.active()?pager.at(0):titles[0]);return true;}
   if(cards.contains(a)){
     const tile=a.closest('.fav-tile')?.querySelector('button[data-item]')||a.closest('button[data-item]');
     if(!tile)return false;
@@ -365,9 +364,15 @@ function catalogDirection(key){
       return true;
     }
     if(key==='ArrowRight'){focusElement(tile.parentElement.querySelector('.fav-star'));return true;}
+    if(pager?.active()){
+      const index=Number(tile.dataset.item)+(key==='ArrowUp'?-1:1);
+      if(index<0)focusElement(backCats);
+      else focusElement(pager.at(index,a.matches('.fav-star')));
+      return true;
+    }
     const n=titles.indexOf(tile)+(key==='ArrowUp'?-1:1);
     if(n<0)focusElement(backCats);
-    else if(n>=titles.length)focusElement(loadMore);
+    else if(n>=titles.length)return true;
     else if(a.matches('.fav-star'))focusElement(titles[n].parentElement.querySelector('.fav-star')||titles[n]);
     else focusElement(titles[n]);
     return true;

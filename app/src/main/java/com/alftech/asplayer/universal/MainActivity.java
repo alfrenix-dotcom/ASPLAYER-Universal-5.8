@@ -974,7 +974,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.17"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.18"; }
         @JavascriptInterface public void setImageEnhancement(String mode) {
             runOnUiThread(()->{
                 enhancement="sharp".equals(mode)?"sharp":"off";

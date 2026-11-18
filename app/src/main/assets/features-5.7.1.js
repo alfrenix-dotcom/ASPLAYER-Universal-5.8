@@ -46,13 +46,20 @@ const historicalRenderCats=renderCats;
 renderCats=function(){historicalRenderCats();if(active!=='live')return;const wrap=G('categories');const btn=document.createElement('button');btn.type='button';btn.className='tab fav-tab'+(category==='favorites'?' active':'');btn.dataset.category='favorites';btn.textContent='★ '+tr('favourites')+' ('+favouriteItems().length+')';wrap.prepend(btn);renderFavoritePreview()};
 const historicalTryCategory=tryCategory;
 tryCategory=function(id){if(id==='favorites'&&active==='live'){loadFavoriteList();window.ASPLAYER_TV_CATEGORY?.(id);return;}return historicalTryCategory(id)};
-const historicalRenderItems=renderItems;
-renderItems=function(){historicalRenderItems();if(active!=='live')return;const nodes=Array.from(G('cards').querySelectorAll('button[data-item]'));
- nodes.forEach(tile=>{const item=filtered[Number(tile.dataset.item)];if(!item?.stream_id)return;
-  const wrap=document.createElement('div');wrap.className='fav-tile';tile.before(wrap);wrap.appendChild(tile);
-  const star=document.createElement('button');star.type='button';star.className='fav-star'+(favHas(item)?' selected':'');star.dataset.favIndex=tile.dataset.item;
-  star.textContent=favHas(item)?'★':'☆';star.setAttribute('aria-label',tr(favHas(item)?'removeFavourite':'favourite'));star.setAttribute('aria-pressed',String(favHas(item)));wrap.appendChild(star);
- });
+const historicalRenderItems=renderItems, historicalCatalogTile=renderCatalogTile;
+let renderedFavorites=new Set();
+renderItems=function(){
+ if(active==='live')renderedFavorites=new Set(favouriteItems().map(favouriteId));
+ return historicalRenderItems();
+};
+renderCatalogTile=function(item,index){
+ const html=historicalCatalogTile(item,index);
+ if(active!=='live'||!item?.stream_id)return html;
+ const selected=renderedFavorites.has(favouriteId(item));
+ return '<div class="fav-tile">'+html+'<button type="button" class="fav-star'+
+  (selected?' selected':'')+'" data-fav-index="'+index+'" aria-label="'+
+  esc(tr(selected?'removeFavourite':'favourite'))+'" aria-pressed="'+selected+'">'+
+  (selected?'★':'☆')+'</button></div>';
 };
 G('cards').addEventListener('click',event=>{const star=event.target.closest('[data-fav-index]');if(!star)return;event.stopPropagation();event.preventDefault();const item=filtered[Number(star.dataset.favIndex)];if(item)toggleFavourite(item);},true);
 
@@ -152,10 +159,10 @@ function renderWatchResults(){
   const previousKey=holder.contains(previous)?previous.dataset.watchKey:null;
   const needle=String(filter||'').toLowerCase();
   const all=watchRows(category).filter(row=>!needle||String(row.title||row.item?.name||row.item?.title||'').toLowerCase().includes(needle));
-  shownWatchRows=all.slice(0,visible);
+  shownWatchRows=all;
   G('count').textContent=all.length+' '+tr('titles');
   G('all-global-status')?.classList.add('hidden');
-  holder.innerHTML=shownWatchRows.map((row,index)=>{
+  const renderRow=(row,index)=>{
     const item=row.item;
     const image=safeImage(item.stream_icon||item.cover||item.movie_image);
     const duration=Number(row.duration)||0,position=Number(row.position)||0;
@@ -170,8 +177,13 @@ function renderWatchResults(){
       '" data-watch-key="'+esc(String(row.id))+'"><div class="cover">'+
       (image?'<img src="'+esc(image)+'" loading="lazy" decoding="async" alt="" onerror="this.style.display=\'none\'">':'▶')+
       '</div><div class="caption"><strong>'+esc(label)+'</strong>'+progress+finished+'</div></button>';
-  }).join('')||'<p class="empty">'+esc(tr('watchEmpty'))+'</p>';
-  G('loadmore').classList.toggle('hidden',shownWatchRows.length>=all.length);
+  };
+  G('loadmore').classList.add('hidden');
+  if(window.ASPLAYER_PAGER?.mount(holder,all,renderRow,{
+    context:catalogPageContext,identity:row=>String(row.id),
+    empty:'<p class="empty">'+esc(tr('watchEmpty'))+'</p>'
+  }))return;
+  holder.innerHTML=all.slice(0,50).map(renderRow).join('')||'<p class="empty">'+esc(tr('watchEmpty'))+'</p>';
   if(previousKey!==null&&previousKey!==undefined){
     const target=Array.from(holder.querySelectorAll('[data-watch-key]')).find(el=>el.dataset.watchKey===previousKey)
       ||holder.querySelector('[data-watch-key]')||G('tv-back-categories');
