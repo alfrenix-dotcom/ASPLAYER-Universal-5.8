@@ -61,9 +61,8 @@ const path = require('node:path');
     assert.equal(await tv.locator('#cards [data-fav-index="50"]').getAttribute('aria-pressed'),'true');
     assert.equal(await tv.evaluate(()=>document.activeElement.dataset.favIndex),'50');
     assert.equal(await tv.locator('#cards [data-item="50"]').count(),1);
-    await tv.evaluate(()=>{
-      filter='Title 1199'; applyFilter();
-    });
+    await tv.locator('#search').fill('Title 1199');
+    await tv.waitForFunction(()=>document.querySelectorAll('#cards [data-item]').length===1);
     assert.equal(await count(),1);
     assert.match(await tv.locator('#cards [data-item="0"]').innerText(),/1199/);
     assert.equal(await tv.evaluate(()=>document.querySelector('#tv-content-pane').scrollTop),0);
