@@ -1,0 +1,47 @@
+/* 5.9.19: bounded glass compositing, safe system insets and floating controls. */
+:root{--android-top:0px;--android-bottom:0px;--glass-top:max(var(--android-top),env(safe-area-inset-top,0px));--glass-bottom:max(var(--android-bottom),env(safe-area-inset-bottom,0px));--glass-border:rgba(159,221,250,.28);--glass-surface:linear-gradient(145deg,rgba(35,48,78,.94),rgba(16,25,47,.96) 58%,rgba(35,25,66,.94));--glass-highlight:inset 0 1px 0 #d2efff39,inset 0 -1px 0 #a999ff20,0 8px 24px #02051462}
+html{background:#060916;scroll-padding-top:calc(102px + var(--glass-top));scroll-padding-bottom:calc(96px + var(--glass-bottom))}
+body{background-attachment:fixed;background-size:100% 100vh}
+body[data-glass-effective=premium]{--glass-surface:linear-gradient(145deg,rgba(43,61,95,.73),rgba(13,22,42,.8) 58%,rgba(43,28,76,.72));--glass-border:rgba(185,227,255,.37)}
+/* Individual rows are cheap tinted panels: do not blur dozens of catalog items. */
+body[data-glass-effective] :is(.box,.quick button,.poster,.tile,.tab,.episode,.category-tools,#asplayer-593-options){background:linear-gradient(145deg,#263351d9,#101a30ef 62%,#241d43d9);border-color:#91b9e744;box-shadow:inset 0 1px 0 #d2efff12}
+body[data-glass-effective] :is(.hero,.contact-priority){border-color:var(--glass-border);box-shadow:var(--glass-highlight)}
+body[data-glass-effective] :is(.ghost,.primary,.danger,.close,.playerline button){border-radius:17px;border-color:#a3cfef59;box-shadow:inset 0 1px 0 #e4f6ff29}
+body[data-glass-effective] .ghost,body[data-glass-effective] .playerline button{background:linear-gradient(140deg,#59759a70,#1c2c49e6 58%,#57457c80)}
+body[data-glass-effective] .tab.active{background:linear-gradient(145deg,#237da0,#193b69);border-color:#6ee5e6}
+body[data-glass-effective] :is(.sidebar,.topbar,.mobilebar,.dialog,.playerhead,.playercontrols){background:var(--glass-surface);border:1px solid var(--glass-border);box-shadow:var(--glass-highlight)}
+body[data-glass-effective=premium] :is(.sidebar,.topbar,.mobilebar,.dialog,.playerhead,.playercontrols){-webkit-backdrop-filter:blur(18px) saturate(145%);backdrop-filter:blur(18px) saturate(145%)}
+body[data-glass-effective] .topbar{border-radius:22px;padding:11px 14px;gap:9px}
+body[data-glass-effective] .topbar h1{margin:0}
+body[data-glass-effective] .sidebar{border-radius:24px;margin:10px 0 10px 10px;top:10px;height:calc(100dvh - 20px);overflow-y:auto}
+body.asplayer-tv-dpad.asplayer-catalog-open[data-glass-effective] #app-shell .sidebar{height:calc(100% - 20px)}
+body[data-glass-effective] .nav{border-radius:18px}
+body[data-glass-effective] :is(.nav.active,.mobilebar button.active){background:linear-gradient(145deg,#8ed9fa45,#2867a56b 65%,#8875c44d);border:1px solid #7bcbf57a;color:white;box-shadow:inset 0 1px 0 #e9f7ff4d}
+body[data-glass-effective] .dialog{border-radius:25px}
+body[data-glass-effective] .modal{padding-top:calc(15px + var(--glass-top));padding-bottom:calc(15px + var(--glass-bottom))}
+body[data-glass-effective] .dialog{max-height:calc(91dvh - var(--glass-top) - var(--glass-bottom))}
+body[data-glass-effective] .login-page{padding-top:calc(22px + var(--glass-top));padding-bottom:calc(22px + var(--glass-bottom))}
+body[data-glass-effective] .playerhead{border-radius:0 0 22px 22px;padding-top:calc(10px + var(--glass-top))}
+body[data-glass-effective] .playercontrols{border-radius:22px;margin:0 9px calc(9px + var(--glass-bottom));padding:10px 12px}
+body[data-glass-effective] .playerline button{border-radius:20px;min-height:44px}
+body[data-glass-effective] #glass-appearance{width:100%;margin-bottom:8px}
+/* Keep landscape and TV geometry stable; only the phone uses a sticky header. */
+@media(min-width:641px){
+ body:not(.asplayer-tv-dpad)[data-glass-effective] #app-shell main{padding-top:calc(23px + var(--glass-top));padding-bottom:calc(100px + var(--glass-bottom))}
+ body:not(.asplayer-tv-dpad)[data-glass-effective] .sidebar{top:calc(10px + var(--glass-top));margin-top:calc(10px + var(--glass-top));height:calc(100dvh - 20px - var(--glass-top) - var(--glass-bottom))}
+ body:not(.asplayer-tv-dpad)[data-glass-effective] #tv-category-pane,body:not(.asplayer-tv-dpad)[data-glass-effective] #tv-content-pane{height:calc(100dvh - 160px - var(--glass-top) - var(--glass-bottom))}
+}
+@media(max-width:640px){
+ body:not(.asplayer-tv-dpad)[data-glass-effective] #app-shell main{padding:0 14px calc(110px + var(--glass-bottom));margin:0 auto}
+ body:not(.asplayer-tv-dpad)[data-glass-effective] .topbar{position:sticky;z-index:25;top:0;margin:0 -7px 15px;padding:calc(8px + var(--glass-top)) 14px 10px;border-radius:0 0 24px 24px;border-top:0;flex-wrap:nowrap}
+ body:not(.asplayer-tv-dpad)[data-glass-effective] .topbar small{font-size:10px;letter-spacing:1.4px}
+ body:not(.asplayer-tv-dpad)[data-glass-effective] .topbar h1{font-size:clamp(23px,6vw,29px)}
+ body:not(.asplayer-tv-dpad)[data-glass-effective] .mobilebar{left:9px;right:9px;bottom:calc(8px + var(--glass-bottom));padding:5px;gap:2px;border-radius:30px;align-items:stretch}
+ body:not(.asplayer-tv-dpad)[data-glass-effective] .mobilebar button{flex:1;min-width:0;min-height:54px;border-radius:25px;border:1px solid transparent;padding:5px 2px;white-space:nowrap;font-size:10px;line-height:1.25}
+ body:not(.asplayer-tv-dpad)[data-glass-effective] .mobilebar button b{font-size:21px;line-height:1.35}
+ body:not(.asplayer-tv-dpad)[data-glass-effective] #tv-category-pane,body:not(.asplayer-tv-dpad)[data-glass-effective] #tv-content-pane{height:calc(100dvh - 190px - var(--glass-top) - var(--glass-bottom))}
+ html.android-keyboard .mobilebar{display:none!important}
+ html.android-keyboard body[data-glass-effective] #tv-category-pane,html.android-keyboard body[data-glass-effective] #tv-content-pane{height:calc(100dvh - 115px - var(--glass-top));min-height:100px}
+}
+@media(max-height:500px) and (orientation:landscape){body:not(.asplayer-tv-dpad)[data-glass-effective] #tv-category-pane,body:not(.asplayer-tv-dpad)[data-glass-effective] #tv-content-pane{height:calc(100dvh - 112px - var(--glass-top) - var(--glass-bottom))}}
+@media(prefers-reduced-motion:no-preference){body[data-glass-effective] :is(.nav,.mobilebar button,.playerline button){transition:background-color .18s,border-color .18s,box-shadow .18s}}

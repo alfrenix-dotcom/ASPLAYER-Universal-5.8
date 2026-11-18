@@ -64,6 +64,11 @@ public final class MainActivity extends Activity {
             | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
             | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+    private static final int EDGE_LAYOUT = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+    private int safeTop, safeBottom;
+    private boolean keyboardOpen;
+    private String glassMode = "adaptive";
     private FrameLayout root;
     private WebView web;
     private VLCVideoLayout video;
@@ -151,6 +156,10 @@ public final class MainActivity extends Activity {
         if(!"auto".equals(decoderMode) && !"hardware".equals(decoderMode)
              && !"software".equals(decoderMode)) decoderMode="auto";
         root = new FrameLayout(this);
+        root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{0xFF201438,0xFF0C2948,0xFF060916}));
+        glassMode=getSharedPreferences("asplayer_appearance",MODE_PRIVATE).getString("glass","adaptive");
+        applySystemBars(false);
         web = new WebView(this);
         web.setBackgroundColor(Color.rgb(8,15,34));
         web.getSettings().setJavaScriptEnabled(true);
@@ -160,6 +169,10 @@ public final class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 return !"file".equalsIgnoreCase(r.getUrl().getScheme());
+            }
+            @Override public void onPageFinished(WebView v,String url) {
+                super.onPageFinished(v,url);
+                if("file:///android_asset/index.html".equals(url))publishWebInsets();
             }
         });
         web.addJavascriptInterface(new Bridge(), "ASPLAYER");
@@ -171,20 +184,30 @@ public final class MainActivity extends Activity {
         video.setFocusableInTouchMode(true);
         createControls();
         createPlaybackFeedback();
-        // Android 15/16 enforce edge-to-edge. Keep menus, video controls and
-        // login fields clear of system bars, display cutouts and the keyboard.
+        // Mobile WebView paints under the transparent status/gesture bars.
+        // TV and native playback retain the original safe native bounds.
         root.setOnApplyWindowInsetsListener((view, insets) -> {
+            int left,top,right,bottom,imeBottom;
             if (android.os.Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets safe = insets.getInsets(
                     android.view.WindowInsets.Type.systemBars()
-                    | android.view.WindowInsets.Type.displayCutout()
-                    | android.view.WindowInsets.Type.ime());
-                view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
+                    | android.view.WindowInsets.Type.displayCutout());
+                left=safe.left; top=safe.top; right=safe.right; bottom=safe.bottom;
+                imeBottom=insets.getInsets(android.view.WindowInsets.Type.ime()).bottom;
+                keyboardOpen=insets.isVisible(android.view.WindowInsets.Type.ime());
             } else {
-                view.setPadding(insets.getSystemWindowInsetLeft(),
-                    insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(),
-                    insets.getSystemWindowInsetBottom());
+                left=insets.getSystemWindowInsetLeft();top=insets.getSystemWindowInsetTop();
+                right=insets.getSystemWindowInsetRight();bottom=insets.getStableInsetBottom();
+                imeBottom=insets.getSystemWindowInsetBottom();
+                keyboardOpen=imeBottom>bottom+dp(80);
+                if(playerVisible&&!keyboardOpen)bottom=imeBottom;
             }
+            boolean nativeBounds=isTvDevice()||playerVisible;
+            view.setPadding(left,nativeBounds?top:0,right,
+                    nativeBounds?Math.max(bottom,imeBottom):(keyboardOpen?imeBottom:0));
+            safeTop=nativeBounds?0:top;
+            safeBottom=nativeBounds||keyboardOpen?0:bottom;
+            publishWebInsets();
             return insets;
         });
         setContentView(root);
@@ -282,6 +305,51 @@ public final class MainActivity extends Activity {
     }
 
     private int dp(float value) { return Math.round(value*getResources().getDisplayMetrics().density); }
+    private void publishWebInsets(){
+        if(web==null)return;
+        float density=getResources().getDisplayMetrics().density;
+        int top=(int)Math.ceil(safeTop/density),bottom=(int)Math.ceil(safeBottom/density);
+        evaluate("document.documentElement.style.setProperty('--android-top','"+top+"px');"
+                +"document.documentElement.style.setProperty('--android-bottom','"+bottom+"px');"
+                +"document.documentElement.classList.toggle('android-keyboard',"+keyboardOpen+");");
+    }
+    private void applySystemBars(boolean immersive){
+        android.view.Window window=getWindow();
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS|WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
+        window.setStatusBarColor(Color.TRANSPARENT);
+        window.setNavigationBarColor(Color.TRANSPARENT);
+        if(android.os.Build.VERSION.SDK_INT>=29){
+            window.setStatusBarContrastEnforced(false);
+            window.setNavigationBarContrastEnforced(false);
+        }
+        window.getDecorView().setSystemUiVisibility(immersive?IMMERSIVE:EDGE_LAYOUT);
+        if(android.os.Build.VERSION.SDK_INT>=30){
+            window.setDecorFitsSystemWindows(false);
+            android.view.WindowInsetsController controller=window.getInsetsController();
+            if(controller!=null){
+                controller.setSystemBarsAppearance(0,android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        |android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+                controller.setSystemBarsBehavior(android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                if(immersive)controller.hide(android.view.WindowInsets.Type.systemBars());
+                else controller.show(android.view.WindowInsets.Type.systemBars());
+            }
+        }
+    }
+    private boolean canUsePremiumGlass(){
+        android.app.ActivityManager manager=(android.app.ActivityManager)getSystemService(ACTIVITY_SERVICE);
+        android.os.PowerManager power=(android.os.PowerManager)getSystemService(POWER_SERVICE);
+        return android.os.Build.VERSION.SDK_INT>=31 && !isTvDevice()
+                && manager!=null && !manager.isLowRamDevice() && (power==null||!power.isPowerSaveMode());
+    }
+    private GradientDrawable playerGlassPanel(){
+        boolean simple="light".equals(glassMode)||( "adaptive".equals(glassMode)&&!canUsePremiumGlass());
+        GradientDrawable panel=new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                simple?new int[]{0xF01A203B,0xEE0B192B}:new int[]{0xDB30395E,0xD90B1428,0xDF262044});
+        panel.setCornerRadius(dp(24));
+        panel.setStroke(dp(1),simple?0xFF52647B:0xA9A4DDF6);
+        return panel;
+    }
     private Button button(String title, Runnable callback) {
         Button b=new Button(this);
         b.setText(title);
@@ -301,10 +369,12 @@ public final class MainActivity extends Activity {
         return b;
     }
     private GradientDrawable controlBackground(boolean focused) {
-        GradientDrawable bg=new GradientDrawable();
-        bg.setColor(focused?0xFF176B91:0xC223174A);
-        bg.setCornerRadius(dp(8));
-        bg.setStroke(dp(focused?3:1),focused?0xFFFFDF79:0xFF53638B);
+        boolean simple="light".equals(glassMode)||("adaptive".equals(glassMode)&&!canUsePremiumGlass());
+        GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                focused?new int[]{0xFF2187AE,0xFF193A68}:simple?new int[]{0xE82B3652,0xE8162339}
+                        :new int[]{0xB37088B1,0xCC28334E,0xC0483269});
+        bg.setCornerRadius(dp(14));
+        bg.setStroke(dp(focused?3:1),focused?0xFFFFDF79:0x996EACCC);
         return bg;
     }
     private void addControl(LinearLayout row,Button b,float weight,boolean seek) {
@@ -525,7 +595,8 @@ public final class MainActivity extends Activity {
         controls=new LinearLayout(this);
         controls.setOrientation(LinearLayout.VERTICAL);
         controls.setPadding(dp(6),dp(8),dp(6),dp(8));
-        controls.setBackgroundColor(0xBB050B1C);
+        controls.setBackground(playerGlassPanel());
+        controls.setElevation(dp(8));
         seekRow=row();
         elapsedText=timeText("00:00");
         durationText=timeText("--:--");
@@ -587,7 +658,9 @@ public final class MainActivity extends Activity {
         addControl(repair,repairVideoButton,1,false);
         controls.addView(repair);addNavigationRow(repair);
 
-        root.addView(controls,new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM));
+        FrameLayout.LayoutParams floating=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM);
+        floating.setMargins(dp(8),0,dp(8),dp(10));
+        root.addView(controls,floating);
         controls.setVisibility(View.GONE);
     }
     private void togglePause() {
@@ -809,7 +882,7 @@ public final class MainActivity extends Activity {
             schedulePlaybackDeadline(LivePlaybackPolicy.startupTimeout(isLive,profile,triedLiveFallback,url));
             if(remotePlayer())focusRemote(feedbackClose);else video.requestFocus();
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            getWindow().getDecorView().setSystemUiVisibility(IMMERSIVE);
+            applySystemBars(true);
             root.requestApplyInsets();
             updateAspect();
             handler.removeCallbacks(progressTicker);
@@ -871,7 +944,7 @@ public final class MainActivity extends Activity {
         if(controls!=null)controls.setVisibility(View.GONE);
         if(video!=null)video.setVisibility(View.GONE);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        getWindow().getDecorView().setSystemUiVisibility(0);
+        applySystemBars(false);
         root.requestApplyInsets();
         if(web!=null)web.setVisibility(View.VISIBLE);
         if(notifyWeb){web.requestFocus();sendEvent("closed");}
@@ -974,7 +1047,19 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.18"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.19"; }
+        @JavascriptInterface public boolean supportsPremiumGlass(){return canUsePremiumGlass();}
+        @JavascriptInterface public void setGlassAppearance(String mode){
+            runOnUiThread(()->{
+                glassMode="premium".equals(mode)||"light".equals(mode)?mode:"adaptive";
+                getSharedPreferences("asplayer_appearance",MODE_PRIVATE).edit().putString("glass",glassMode).apply();
+                if(controls!=null){
+                    controls.setBackground(playerGlassPanel());
+                    for(List<View> row:navigationRows)for(View view:row)
+                        if(view instanceof Button)view.setBackground(controlBackground(view.hasFocus()));
+                }
+            });
+        }
         @JavascriptInterface public void setImageEnhancement(String mode) {
             runOnUiThread(()->{
                 enhancement="sharp".equals(mode)?"sharp":"off";
@@ -1084,11 +1169,11 @@ public final class MainActivity extends Activity {
     }
 
 
-    @Override public void onConfigurationChanged(Configuration c) {super.onConfigurationChanged(c);updateAspect();}
+    @Override public void onConfigurationChanged(Configuration c) {super.onConfigurationChanged(c);updateAspect();root.requestApplyInsets();}
     @Override public void onWindowFocusChanged(boolean focus) {
         super.onWindowFocusChanged(focus);
-        if(focus && playerVisible) {
-            getWindow().getDecorView().setSystemUiVisibility(IMMERSIVE);
+        if(focus && root!=null) {
+            applySystemBars(playerVisible);
             root.requestApplyInsets();
         }
     }
