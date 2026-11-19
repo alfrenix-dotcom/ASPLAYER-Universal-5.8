@@ -11,7 +11,12 @@ for(const l of ['en','es'])Object.assign(LABELS[l],labels54[l]);
 let sortMode=['new','old','rated'].includes(settings.order)?settings.order:'new';
 let epgSource='server';
 let synopsisSource=['server','ai'].includes(settings.synopsisSource)?settings.synopsisSource:'server';
-let onlineEndpoint=typeof settings.onlineEndpoint==='string'?settings.onlineEndpoint:'';
+const DEFAULT_AI_ENDPOINT='https://asplayer-ai.alfrenix.workers.dev';
+// Migrate legacy unset/blank service once; retain custom HTTPS addresses and later opt-outs.
+let onlineEndpoint=checkedEndpoint(settings.onlineEndpoint)||((settings.onlineEndpointConfigured===true)?'':DEFAULT_AI_ENDPOINT);
+settings.onlineEndpoint=onlineEndpoint;
+settings.onlineEndpointConfigured=true;
+saveSettings();
 let liveItem=null,accountInfoTask=0,lastMetaRefresh=0,lastCheck=0,epgTask=0;
 window.ASPLAYER_SET_LIVE_ITEM=(item)=>{liveItem=item};
 const get=(id)=>document.getElementById(id);
@@ -67,6 +72,7 @@ get('epg-source').addEventListener('change',e=>{epgSource='server';persist();if(
 get('synopsis-source').addEventListener('change',e=>{synopsisSource=e.target.value==='ai'?'ai':'server';persist();if(synopsisSource==='ai'&&!onlineEndpoint)toast(tr('endpointMissing'))});
 function checkedEndpoint(v){try{const u=new URL(String(v||'').trim());if(u.protocol!=='https:'||!u.hostname||u.username||u.password||u.search||u.hash)return null;return u.href.replace(/\/+$/,'')}catch(_){return null}}
 get('save-online').addEventListener('click',()=>{const input=get('online-endpoint').value.trim();if(input&&!checkedEndpoint(input)){get('online-status').textContent=tr('endpointInvalid');return}onlineEndpoint=input?checkedEndpoint(input):'';persist();get('online-status').textContent=onlineEndpoint?tr('endpointSaved'):tr('serviceInactive')});
+window.ASPLAYER_RESET_AI_ENDPOINT=()=>{get('online-endpoint').value=DEFAULT_AI_ENDPOINT;get('save-online').click()};
 function remoteJson(url,body){return new Promise((resolve,reject)=>{if(!window.ASPLAYER||typeof window.ASPLAYER.requestAsync!=='function')return reject(Error('Android network bridge unavailable'));const id=String(nextId++);const timer=setTimeout(()=>{pending.delete(id);reject(Error('Timeout'))},30000);pending.set(id,{resolve,reject,timer});try{if(body===undefined)ASPLAYER.requestAsync(url,id);else ASPLAYER.requestAiAsync(url,JSON.stringify(body),id)}catch(e){clearTimeout(timer);pending.delete(id);reject(e)}})}
 function backend(path,params={}){if(!onlineEndpoint)return Promise.reject(Error('Service not configured'));const url=new URL(onlineEndpoint+path);for(const [key,val] of Object.entries(params))url.searchParams.set(key,String(val));return remoteJson(url.toString())}
 window.ASPLAYER_AI_REQUEST=(path,body)=>{if(!onlineEndpoint||!['/api/synopsis','/api/assistant'].includes(path))return Promise.reject(Error('AI service not configured'));return remoteJson(onlineEndpoint+path,body)};
