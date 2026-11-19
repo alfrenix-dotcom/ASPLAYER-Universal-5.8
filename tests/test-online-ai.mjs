@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import worker from '../cloudflare-ai/worker.mjs';
 let calls=0,allowed=true;
-const env={AI_LIMIT:{limit:async()=>({success:allowed})},AI:{run:async(model,params)=>{calls++;assert.match(model,/llama/);const data=JSON.parse(params.messages[1].content);assert(!('password' in data));return {response:data.original?'Translated provider text':JSON.stringify({mode:'search',answer:'Try comedy',keywords:['comedy','comedia']})}}},NOTICE_ID:'notice1',NOTICE_ES:'Hola'};
+const env={AI_LIMIT:{limit:async()=>({success:allowed})},AI:{run:async(model,params)=>{calls++;assert.match(model,/gemma-4/);const data=JSON.parse(params.messages[1].content);assert(!('password' in data));if(!data.original)assert.equal(params.response_format.type,'json_object');return {choices:[{message:{content:data.original?'Translated provider text':JSON.stringify({mode:'search',answer:'Try comedy',keywords:['comedy','comedia']})}}]}}},NOTICE_ID:'notice1',NOTICE_ES:'Hola'};
 const req=(path,body)=>new Request('https://example.workers.dev'+path,body===undefined?{}:{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
 const fetch=(path,body)=>worker.fetch(req(path,body),env);
 assert.equal((await (await fetch('/api/announcements?lang=es')).json()).announcement.message,'Hola');
