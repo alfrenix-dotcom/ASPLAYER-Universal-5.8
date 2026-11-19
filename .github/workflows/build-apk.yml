@@ -51,6 +51,9 @@ jobs:
           assert 'transportRow.setVisibility(isLive?View.GONE:View.VISIBLE)' in java
           assert 'extrasRow.setVisibility(isLive?View.GONE:View.VISIBLE)' in java
           assert 'liveCloseButton.setVisibility(isLive?View.VISIBLE:View.GONE)' in java
+          assert 'liveAspectButton.setVisibility(isLive?View.VISIBLE:View.GONE)' in java
+          assert 'liveAspectButton=button("Fill screen",this::toggleAspect)' in java
+          assert 'pictureMode="contain"' in java and 'pictureMode="contain".equals(pictureMode)?"cover":"contain"' in java
           assert 'return isLive?repairVideoButton:playPause' in java
           assert 'isLive=url.contains("/live/");\n        configurePlaybackControls();' in java
           assert 'profile="adaptive"' in java
@@ -75,6 +78,7 @@ jobs:
           node tests/test-details-recents.cjs
           node tests/test-online-ai.mjs
           node tests/test-ai-ui.cjs
+          node tests/test-picture-mode.cjs
       - name: Build debug APK (not Play-install compatible)
         run: gradle --no-daemon --stacktrace :app:assembleDebug
       - name: Verify packaged adaptive launcher resources

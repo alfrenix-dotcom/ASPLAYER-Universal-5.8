@@ -130,8 +130,8 @@ const seriesOld=showSeries;showSeries=async function(it){const task=seriesOld(it
 async function checkAnnouncements(notify=false){if(!onlineEndpoint){if(notify)get('online-status').textContent=tr('serviceInactive');return}if(Date.now()-lastCheck<60000&&!notify)return;lastCheck=Date.now();try{const r=await backend('/api/announcements',{app:'asplayer',lang});const n=r?.announcement||r?.notice||null;const message=String(n?.message||'').trim().slice(0,400);const id=String(n?.id||'');const key='asplayer:notices:seen';if(!id||!message||n?.active===false||localStorage.getItem(key)===id){if(notify)get('online-status').textContent=tr('noNewNotice');return}if(n?.expires_at&&Date.parse(n.expires_at)<Date.now())return;get('announcement-message').textContent=message;get('announcement').dataset.notice=id;get('announcement').classList.remove('hidden');if(notify)get('online-status').textContent='✓'}catch(_){if(notify)get('online-status').textContent=tr('noticesError')}}
 get('check-notice').addEventListener('click',()=>checkAnnouncements(true));
 get('dismiss-announcement').addEventListener('click',()=>{const el=get('announcement');if(el.dataset.notice)localStorage.setItem('asplayer:notices:seen',el.dataset.notice);el.classList.add('hidden')});
-// Keep video playback active while rotating; portrait preserves original aspect ratio.
-function updateResponsivePlayer(){const v=get('video');if(!v)return;v.style.objectFit=window.innerHeight>window.innerWidth?'contain':playAspect}
+// Honor the chosen aspect in either orientation (Fit is the default).
+function updateResponsivePlayer(){const v=get('video');if(!v)return;v.style.objectFit=playAspect}
 const oldOpenPlayer=openPlayer;openPlayer=function(){oldOpenPlayer();updateResponsivePlayer()};
 get('default-aspect').addEventListener('change',()=>setTimeout(updateResponsivePlayer,0));
 window.addEventListener('resize',updateResponsivePlayer);window.addEventListener('orientationchange',updateResponsivePlayer);

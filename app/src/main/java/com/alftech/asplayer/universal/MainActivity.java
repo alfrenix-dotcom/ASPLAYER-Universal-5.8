@@ -73,7 +73,7 @@ public final class MainActivity extends Activity {
     private WebView web;
     private VLCVideoLayout video;
     private LinearLayout controls, transportRow, extrasRow;
-    private Button playPause, repairVideoButton, liveCloseButton, audioButton, subtitlesButton, aspectButton;
+    private Button playPause, repairVideoButton, liveAspectButton, liveCloseButton, audioButton, subtitlesButton, aspectButton;
     private final ArrayList<List<View>> navigationRows=new ArrayList<>();
     private final ArrayList<Button> seekButtons=new ArrayList<>();
     private boolean remotePlayerMode, trackDialogOpen;
@@ -138,7 +138,7 @@ public final class MainActivity extends Activity {
     private boolean triedLiveFallback;
     private boolean allowLiveFallback=true;
     private String playingUrl="";
-    private String profile="adaptive", pictureMode="cover", audioLanguage="auto", subtitleLanguage="off";
+    private String profile="adaptive", pictureMode="contain", audioLanguage="auto", subtitleLanguage="off";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService requests = Executors.newFixedThreadPool(3);
     private final Runnable hideControls = () -> {
@@ -662,6 +662,9 @@ public final class MainActivity extends Activity {
         LinearLayout repair=row();
         repairVideoButton=button(localized("Recuperar imagen","Recover video"),this::manualRepairVideo);
         addControl(repair,repairVideoButton,1,false);
+        liveAspectButton=button("Fill screen",this::toggleAspect);
+        addControl(repair,liveAspectButton,1,false);
+        liveAspectButton.setVisibility(View.GONE);
         liveCloseButton=button(localized("Cerrar reproducción","Close playback"),()->closePlayer(true));
         addControl(repair,liveCloseButton,1,false);
         liveCloseButton.setVisibility(View.GONE);
@@ -672,10 +675,11 @@ public final class MainActivity extends Activity {
         root.addView(controls,floating);
         controls.setVisibility(View.GONE);
     }
-    // Live TV has only recover and close. Movie/series rows keep their existing layout.
+    // Live TV has recover, fit/fill and close. Movie/series controls remain unchanged.
     private void configurePlaybackControls() {
         transportRow.setVisibility(isLive?View.GONE:View.VISIBLE);
         extrasRow.setVisibility(isLive?View.GONE:View.VISIBLE);
+        liveAspectButton.setVisibility(isLive?View.VISIBLE:View.GONE);
         liveCloseButton.setVisibility(isLive?View.VISIBLE:View.GONE);
         if(isLive)seekRow.setVisibility(View.GONE);
     }
@@ -705,6 +709,7 @@ public final class MainActivity extends Activity {
         if(playPause!=null)playPause.setText(player!=null&&player.isPlaying()?localized("Pausar","Pause"):localized("Reproducir","Play"));
         if(subtitlesButton!=null)subtitlesButton.setText(localized("Subtítulos","Subtitles"));
         if(aspectButton!=null)aspectButton.setText("contain".equals(pictureMode)?localized("Ampliar","Fill screen"):localized("Ajustar","Fit screen"));
+        if(liveAspectButton!=null)liveAspectButton.setText("contain".equals(pictureMode)?localized("Ampliar pantalla","Fill screen"):localized("Ajustar pantalla","Fit screen"));
         if(repairVideoButton!=null)repairVideoButton.setText(localized("Recuperar imagen","Recover video"));
         if(liveCloseButton!=null)liveCloseButton.setText(localized("Cerrar reproducción","Close playback"));
     }
@@ -830,9 +835,8 @@ public final class MainActivity extends Activity {
     }
     private void updateAspect() {
         if(player==null)return;
-        boolean portrait=getResources().getConfiguration().orientation==Configuration.ORIENTATION_PORTRAIT;
         // The supported LibVLC ScaleType names vary; use reflection for graceful fallback.
-        String requested = portrait || "contain".equals(pictureMode)?"SURFACE_BEST_FIT"
+        String requested = "contain".equals(pictureMode)?"SURFACE_BEST_FIT"
                 : "fill".equals(pictureMode)?"SURFACE_FILL":"SURFACE_FIT_SCREEN";
         try {
             Class<?> type=Class.forName("org.videolan.libvlc.MediaPlayer$ScaleType");
@@ -842,7 +846,7 @@ public final class MainActivity extends Activity {
             player.getClass().getMethod("setVideoScale",type).invoke(player,enumValue);
         } catch(Exception ignored) { /* default fit if this LibVLC release differs */ }
     }
-    private void toggleAspect() { pictureMode="contain".equals(pictureMode)?"fill":"contain"; updateAspect();updatePlayerLabels(); }
+    private void toggleAspect() { pictureMode="contain".equals(pictureMode)?"cover":"contain"; updateAspect();updatePlayerLabels(); }
     private void startMedia(String url,String newProfile,String aspect,String audio,String subs,long resumeMs) {
         startMedia(url,newProfile,aspect,audio,subs,resumeMs,true);
     }
@@ -1071,7 +1075,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.24"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.25"; }
         @JavascriptInterface public void checkPlayUpdate(){runOnUiThread(()->MainActivity.this.checkPlayUpdate(true));}
         @JavascriptInterface public void openPlayUpdate(){runOnUiThread(()->updateNotice.openStore());}
         @JavascriptInterface public boolean supportsPremiumGlass(){return canUsePremiumGlass();}

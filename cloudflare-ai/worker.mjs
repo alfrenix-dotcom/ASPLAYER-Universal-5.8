@@ -7,7 +7,7 @@ const langOf=x=>x==='es'?'Spanish':'English';
 async function inference(env,system,data,max_tokens,structured=false){const result=await env.AI.run(MODEL,{messages:[{role:'system',content:system},{role:'user',content:JSON.stringify(data)}],max_completion_tokens:max_tokens,temperature:0.2,chat_template_kwargs:{enable_thinking:false},...(structured?{response_format:{type:'json_object'}}:{})});const value=result?.choices?.[0]?.message?.content??result?.response;if(structured&&value&&typeof value==='object')return JSON.stringify(value);return clean(value,3500)}
 export default {async fetch(request,env){
  const url=new URL(request.url),path=url.pathname;
- if(request.method==='GET'&&path==='/')return json({service:'ASPLAYER AI',version:2,features:['synopsis-translation','synopsis-generation','assistant']});
+ if(request.method==='GET'&&path==='/')return json({service:'ASPLAYER AI',version:3,appVersion:'5.9.25',features:['synopsis-translation','synopsis-generation','assistant']});
  if(request.method==='GET'&&path==='/api/announcements'){
   const lang=url.searchParams.get('lang')==='es'?'ES':'EN',message=clean(env['NOTICE_'+lang],400),id=clean(env.NOTICE_ID,100);return json({announcement:id&&message?{id,message,active:true}:null});
  }

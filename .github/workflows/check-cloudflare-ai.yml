@@ -15,6 +15,11 @@ jobs:
         run: |
           set -euo pipefail
           worker=https://asplayer-ai.alfrenix.workers.dev
-          curl -fsS --max-time 20 "$worker/" | jq -e '.version >= 2 and (.features | index("synopsis-generation") != null)'
+          # Cloudflare builds independently of GitHub Actions; allow time to publish this revision.
+          for attempt in $(seq 1 18); do
+            if curl -fsS --max-time 10 "$worker/" | jq -e '.version >= 3 and .appVersion == "5.9.25" and (.features | index("synopsis-generation") != null)'; then break; fi
+            if [ "$attempt" = 18 ]; then echo 'Worker 5.9.25 not yet deployed'; exit 1; fi
+            sleep 8
+          done
           curl -fsS --max-time 90 "$worker/api/synopsis" -H 'Content-Type: application/json' --data '{"title":"Breaking Bad","category":"series","lang":"es","original":"A chemistry teacher becomes involved in the drug trade after a cancer diagnosis."}' | jq -e '.grounded == true and (.synopsis | type == "string" and length > 15)'
           curl -fsS --max-time 90 "$worker/api/synopsis" -H 'Content-Type: application/json' --data '{"title":"Breaking Bad","category":"series","year":"2008","lang":"es","generate":true}' | jq -e '.generated == true and .grounded == false and (.synopsis | type == "string" and length > 15)'
