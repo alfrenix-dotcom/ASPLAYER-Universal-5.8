@@ -13,6 +13,8 @@ syncNativeLanguage();
 let currentItem=null,currentMode=null,currentId='',currentPrefix='',nativeVisible=false;
 const idOf=item=>String(item?.stream_id??item?.series_id??item?.id??item?.name??'');
 function liveExtension(account,profile){
+  if(settings.liveFormat==='hls')return 'm3u8';
+  if(settings.liveFormat==='mpegts')return 'ts';
   const advertised=Array.isArray(account?.meta?.allowed_output_formats)
     ?account.meta.allowed_output_formats.map(value=>String(value).toLowerCase()):[];
   const ts=advertised.includes('ts')||advertised.includes('mpegts');
@@ -41,7 +43,9 @@ play=function(item,mode){
     get('player-choice').classList.add('hidden');
     get('modern-player').classList.add('hidden');
     try{
-      bridge.playMedia(url,profile,playAspect,audioPref,subsPref,0);
+      const manual=settings.liveFormat==='hls'||settings.liveFormat==='mpegts';
+      if(manual&&typeof bridge.playLiveMedia==='function')bridge.playLiveMedia(url,profile,playAspect,audioPref,subsPref,0);
+      else bridge.playMedia(url,profile,playAspect,audioPref,subsPref,0);
       nativeVisible=true;
     }catch(_){
       nativeVisible=false;

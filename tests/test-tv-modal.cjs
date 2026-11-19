@@ -120,7 +120,7 @@ const {pathToFileURL}=require('node:url');
       renderCats();window.ASPLAYER_REFRESH_WATCH();
     });
     assert.equal(await page.locator('#watch-panels').count(),0);
-    assert.deepEqual(await page.locator('#categories button').evaluateAll(els=>els.slice(0,3).map(el=>el.dataset.category)),['__asplayer_continue__','__asplayer_history__','all']);
+    assert.deepEqual(await page.locator('#categories button').evaluateAll(els=>els.slice(0,4).map(el=>el.dataset.category)),['__asplayer_continue__','__asplayer_history__','__asplayer_recent__','all']);
     assert.equal(await page.locator('#refresh-cat').evaluate(el=>!!el.closest('.topbar')),true);
     await page.locator('#categories [data-category="__asplayer_continue__"]').focus();
     await page.keyboard.press('Enter');

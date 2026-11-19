@@ -93,6 +93,10 @@ public final class MainActivity extends Activity {
     private TextView feedbackTitle, feedbackDetail;
     private Button feedbackRetry, feedbackClose;
     private String uiLanguage = "en";
+    private PlayUpdateNotice updateNotice;
+    private boolean foreground=false;
+    private String updateState="unknown";
+    private int updateVersion=0;
     private boolean playbackStarted, playbackFailed, rebufferWaiting;
     private String decoderMode="auto", activeMediaUrl="";
     private boolean usingSoftwareFallback, videoOutputSeen;
@@ -132,6 +136,7 @@ public final class MainActivity extends Activity {
         }
     };
     private boolean triedLiveFallback;
+    private boolean allowLiveFallback=true;
     private String playingUrl="";
     private String profile="adaptive", pictureMode="cover", audioLanguage="auto", subtitleLanguage="off";
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -151,6 +156,7 @@ public final class MainActivity extends Activity {
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        updateNotice=new PlayUpdateNotice(this);
         enhancement=getSharedPreferences("asplayer_picture",MODE_PRIVATE).getString("enhancement","off");
         decoderMode=getSharedPreferences("asplayer_decoder",MODE_PRIVATE).getString("mode","auto");
         if(!"auto".equals(decoderMode) && !"hardware".equals(decoderMode)
@@ -172,7 +178,7 @@ public final class MainActivity extends Activity {
             }
             @Override public void onPageFinished(WebView v,String url) {
                 super.onPageFinished(v,url);
-                if("file:///android_asset/index.html".equals(url))publishWebInsets();
+                if("file:///android_asset/index.html".equals(url)){publishWebInsets();publishUpdateState();}
             }
         });
         web.addJavascriptInterface(new Bridge(), "ASPLAYER");
@@ -566,7 +572,7 @@ public final class MainActivity extends Activity {
         if(!playerVisible || playbackFailed)return;
         cancelVideoWatchdog();
         // Try the provider's alternate live transport before software decoding.
-        String alternate=isLive?LivePlaybackPolicy.alternate(activeMediaUrl):"";
+        String alternate=isLive&&allowLiveFallback?LivePlaybackPolicy.alternate(activeMediaUrl):"";
         if(!triedLiveFallback && !alternate.isEmpty() && allowedProviderUrl(alternate,true)) {
             triedLiveFallback=true;
             startMediaInternal(alternate,0);
@@ -825,7 +831,11 @@ public final class MainActivity extends Activity {
     }
     private void toggleAspect() { pictureMode="contain".equals(pictureMode)?"fill":"contain"; updateAspect();updatePlayerLabels(); }
     private void startMedia(String url,String newProfile,String aspect,String audio,String subs,long resumeMs) {
+        startMedia(url,newProfile,aspect,audio,subs,resumeMs,true);
+    }
+    private void startMedia(String url,String newProfile,String aspect,String audio,String subs,long resumeMs,boolean automaticTransport) {
         if(!allowedProviderUrl(url,true)) { sendEvent("error"); return; }
+        this.allowLiveFallback=automaticTransport;
         this.profile="fast".equals(newProfile)||"ultra".equals(newProfile)||"normal".equals(newProfile)
             ?newProfile:"adaptive";
         this.pictureMode=aspect; this.audioLanguage=audio; this.subtitleLanguage=subs;
@@ -879,7 +889,7 @@ public final class MainActivity extends Activity {
             handler.removeCallbacks(showRebuffer);
             video.setVisibility(View.VISIBLE);
             showLoadingFeedback();
-            schedulePlaybackDeadline(LivePlaybackPolicy.startupTimeout(isLive,profile,triedLiveFallback,url));
+            schedulePlaybackDeadline(LivePlaybackPolicy.startupTimeout(isLive,profile,triedLiveFallback||!allowLiveFallback,url));
             if(remotePlayer())focusRemote(feedbackClose);else video.requestFocus();
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             applySystemBars(true);
@@ -1047,7 +1057,9 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.19"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.20"; }
+        @JavascriptInterface public void checkPlayUpdate(){runOnUiThread(()->MainActivity.this.checkPlayUpdate(true));}
+        @JavascriptInterface public void openPlayUpdate(){runOnUiThread(()->updateNotice.openStore());}
         @JavascriptInterface public boolean supportsPremiumGlass(){return canUsePremiumGlass();}
         @JavascriptInterface public void setGlassAppearance(String mode){
             runOnUiThread(()->{
@@ -1106,6 +1118,9 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void stopMedia() {runOnUiThread(()->closePlayer(false));}
         @JavascriptInterface public void playMedia(String url,String p,String a,String audio,String subs,long pos) {
             runOnUiThread(()->startMedia(url,p,a,audio,subs,pos));
+        }
+        @JavascriptInterface public void playLiveMedia(String url,String p,String a,String audio,String subs,long pos) {
+            runOnUiThread(()->startMedia(url,p,a,audio,subs,pos,false));
         }
         @JavascriptInterface public void playExternal(String url) {
             if (!allowedProviderUrl(url, true)) return;
@@ -1194,6 +1209,25 @@ public final class MainActivity extends Activity {
         cancelVideoWatchdog();
         handler.removeCallbacks(showRebuffer);
         super.onStop();
+    }
+    private void publishUpdateState(){
+        if(web!=null)web.evaluateJavascript("window.ASPLAYER_UPDATE_RESULT?.('"+updateState+"',"+updateVersion+")",null);
+    }
+    private void checkPlayUpdate(boolean manual){
+        if(updateNotice==null||isFinishing())return;
+        updateNotice.check(manual,isTvDevice(),(status,version)->{
+            updateState=status;updateVersion=version;publishUpdateState();
+            if("available".equals(status))updateNotice.notifyAvailable("es".equals(uiLanguage),foreground&&!playerVisible);
+        });
+    }
+    @Override protected void onResume(){
+        super.onResume();foreground=true;
+        handler.postDelayed(()->{if(foreground&&!isFinishing())checkPlayUpdate(false);},1500);
+    }
+    @Override protected void onPause(){foreground=false;super.onPause();}
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] results){
+        super.onRequestPermissionsResult(requestCode,permissions,results);
+        if(requestCode==PlayUpdateNotice.PERMISSION_REQUEST&&updateNotice!=null)updateNotice.notifyAvailable("es".equals(uiLanguage),false);
     }
     @Override protected void onDestroy() {
         closePlayer(false);

@@ -2,7 +2,7 @@ name: ASPLAYER Universal — Build and Validate
 on:
   workflow_dispatch:
   push:
-    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass]
+    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass, development/5.9.20-details-recents]
     paths:
       - 'app/**'
       - 'tests/**'
@@ -67,6 +67,7 @@ jobs:
           node tests/test-tv-modal.cjs
           node tests/test-catalog-pager.cjs
           node tests/test-liquid-glass.cjs
+          node tests/test-details-recents.cjs
       - name: Build debug APK (not Play-install compatible)
         run: gradle --no-daemon --stacktrace :app:assembleDebug
       - name: Verify packaged adaptive launcher resources
