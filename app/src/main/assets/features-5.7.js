@@ -34,7 +34,7 @@ Object.assign(LABELS.es,{
 
 const PREVIEW_CATEGORY_COUNT=2, PREVIEW_LIMIT=18, PER_PAGE=18, MAX_RESULTS=350;
 let indexToken=0, currentSearch=null, preview=[], previewLoaded=false, previewAccount='', scanTimer=0;
-const categoryCache=new Map();
+const categoryCache=new Map(),categoryPending=new Map();
 const historicalLoad=loadItems, historicalApply=applyFilter, historicalRender=renderItems;
 const isAll=()=>category==='all'&&(active==='vod'||active==='series');
 const accountId=()=>sessionPrefix()+'|'+active;
@@ -94,14 +94,30 @@ function keepSample(item,cat){
 async function readCat(tab,cat,force){
  const key=accountId()+'|'+String(cat.category_id),mem=categoryCache.get(key);
  if(mem&&!force&&Date.now()-mem.when<8*3600*1000)return mem.data;
- const data=await cached(ACTIONS[tab][1],{category_id:String(cat.category_id)},force);
- if(!Array.isArray(data))throw Error('Category response is not an array');
- const enriched=data.map(it=>keepSample(it,cat)).filter(Boolean);
- // Memory is bounded; IndexedDB's existing 8-hour cache keeps other categories.
- categoryCache.delete(key);categoryCache.set(key,{when:Date.now(),data:enriched});
- while(categoryCache.size>9)categoryCache.delete(categoryCache.keys().next().value);
- return enriched;
+ if(!force&&categoryPending.has(key))return categoryPending.get(key);
+ const task=(async()=>{const data=await cached(ACTIONS[tab][1],{category_id:String(cat.category_id)},force);
+  if(!Array.isArray(data))throw Error('Category response is not an array');
+  const enriched=data.map(it=>keepSample(it,cat)).filter(Boolean);
+  // Memory is bounded; IndexedDB's existing 8-hour cache keeps other categories.
+  categoryCache.delete(key);categoryCache.set(key,{when:Date.now(),data:enriched});
+  while(categoryCache.size>9)categoryCache.delete(categoryCache.keys().next().value);
+  return enriched;
+ })();categoryPending.set(key,task);try{return await task}finally{if(categoryPending.get(key)===task)categoryPending.delete(key)}
 }
+// The AI assistant uses the same bounded, account-scoped category cache as
+// global search. Do not replace the visible catalog or send it to the AI.
+window.ASPLAYER_SCAN_CATEGORIES=async function(tab,valid,onCategory){
+ const source=allCategoryIds().filter(c=>!parentEnabled||!isAdult(c.category_name));
+ let next=0,done=0,errors=0;
+ onCategory([],done,source.length,errors);
+ async function worker(){while(next<source.length&&valid()){
+  const cat=source[next++];let rows=[];
+  try{rows=await readCat(tab,cat,false)}catch(_){errors++}
+  if(!valid())return;
+  done++;onCategory(rows,done,source.length,errors);
+ }}
+ await Promise.all(Array.from({length:Math.min(3,source.length)},worker));
+};
 function resetAllUI(){
  filtered=[];catalog=[];preview=[];previewLoaded=false;visible=PER_PAGE;
  el('loadmore').classList.add('hidden');

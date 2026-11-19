@@ -467,7 +467,7 @@ vpnCheck.addEventListener('change',()=>{
   if(vpnCheck.checked)warpButton.click();
 });
 function localize(){
-  version.textContent='ASPLAYER Universal 5.9.21 · LibVLC 3.7.7 · Alftech Solutions';
+  version.textContent='ASPLAYER Universal 5.9.22 · LibVLC 3.7.7 · Alftech Solutions';
   heading.textContent=t('Imagen, rendimiento y conexión','Picture, performance and connection');
   sharpLabel.textContent=t('Mejora de nitidez (experimental)','Sharpness enhancement (experimental)');
   sharp.options[0].textContent=t('Normal (recomendado)','Normal (recommended)');
@@ -487,7 +487,7 @@ if(place)place.appendChild(panel);
 // Make the actual version visible on the existing About text as well.
 for(const el of document.querySelectorAll('#view-settings p')){
   if(el===version)continue;
-  if(/ASPLAYER Universal 5\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 5.9.21 · LibVLC/VLC · Alftech Solutions';
+  if(/ASPLAYER Universal 5\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 5.9.22 · LibVLC/VLC · Alftech Solutions';
 }
 if(typeof languageUI==='function'){
  const prior=languageUI;languageUI=function(){prior.apply(this,arguments);localize();};

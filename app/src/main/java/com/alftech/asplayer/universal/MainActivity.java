@@ -1057,7 +1057,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.21"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.22"; }
         @JavascriptInterface public void checkPlayUpdate(){runOnUiThread(()->MainActivity.this.checkPlayUpdate(true));}
         @JavascriptInterface public void openPlayUpdate(){runOnUiThread(()->updateNotice.openStore());}
         @JavascriptInterface public boolean supportsPremiumGlass(){return canUsePremiumGlass();}
