@@ -1,0 +1,20 @@
+name: ASPLAYER Cloudflare AI — Production smoke test
+on:
+  workflow_dispatch:
+  push:
+    branches: [development/5.9.21-cloudflare-ai]
+    paths: ['cloudflare-ai/**', '.github/workflows/check-cloudflare-ai.yml']
+permissions:
+  contents: read
+jobs:
+  verify-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check public service and synopsis endpoints
+        run: |
+          set -euo pipefail
+          worker=https://asplayer-ai.alfrenix.workers.dev
+          curl -fsS --max-time 20 "$worker/" | jq -e '.version >= 2 and (.features | index("synopsis-generation") != null)'
+          curl -fsS --max-time 90 "$worker/api/synopsis" -H 'Content-Type: application/json' --data '{"title":"Breaking Bad","category":"series","lang":"es","original":"A chemistry teacher becomes involved in the drug trade after a cancer diagnosis."}' | jq -e '.grounded == true and (.synopsis | type == "string" and length > 15)'
+          curl -fsS --max-time 90 "$worker/api/synopsis" -H 'Content-Type: application/json' --data '{"title":"Breaking Bad","category":"series","year":"2008","lang":"es","generate":true}' | jq -e '.generated == true and .grounded == false and (.synopsis | type == "string" and length > 15)'
