@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import worker from '../cloudflare-ai/worker.mjs';
 let calls=0,allowed=true;
-const env={AI_LIMIT:{limit:async()=>({success:allowed})},AI:{run:async(model,params)=>{calls++;assert.match(model,/gemma-4/);const data=JSON.parse(params.messages[1].content);assert(!('password' in data));if(!data.original)assert.equal(params.response_format.type,'json_object');return {choices:[{message:{content:data.original?'Translated provider text':JSON.stringify({mode:'search',answer:'Try comedy',keywords:['comedy','comedia']})}}]}}},NOTICE_ID:'notice1',NOTICE_ES:'Hola'};
+const env={AI_LIMIT:{limit:async()=>({success:allowed})},AI:{run:async(model,params)=>{calls++;assert.match(model,/gemma-4/);const data=JSON.parse(params.messages[1].content);assert(!('password' in data));if(!data.original)assert.equal(params.response_format.type,'json_object');let content=data.original?'Translated provider text':data.title?JSON.stringify({known:data.title!=='Unknown',synopsis:data.title==='Unknown'?'':'Sinopsis sugerida'}):JSON.stringify({mode:'search',answer:'Try comedy',keywords:['comedy','comedia']});if(data.title&&!data.original)assert.match(params.messages[0].content,/Spanish/);return {choices:[{message:{content}}]}}},NOTICE_ID:'notice1',NOTICE_ES:'Hola'};
 const req=(path,body)=>new Request('https://example.workers.dev'+path,body===undefined?{}:{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
 const fetch=(path,body)=>worker.fetch(req(path,body),env);
 assert.equal((await (await fetch('/api/announcements?lang=es')).json()).announcement.message,'Hola');
@@ -9,8 +9,10 @@ assert.equal((await (await fetch('/api/synopsis?title=Unknown')).json()).verifie
 assert.equal((await fetch('/api/synopsis',{title:'Test'})).status,400);
 assert.equal(calls,0);
 assert.equal((await (await fetch('/api/synopsis',{title:'Test',original:'Provider text',lang:'en'})).json()).grounded,true);
+assert.deepEqual(await (await fetch('/api/synopsis',{title:'Test series',category:'series',generate:true,year:'2020',lang:'es'})).json(),{grounded:false,generated:true,synopsis:'Sinopsis sugerida',source:'AI-generated, not independently verified'});
+assert.deepEqual(await (await fetch('/api/synopsis',{title:'Unknown',generate:true,lang:'es'})).json(),{grounded:false,generated:false,synopsis:''});
 assert.deepEqual((await (await fetch('/api/assistant',{question:'comedia',lang:'es',password:'never forwarded'})).json()).keywords,['comedy','comedia']);
-allowed=false;assert.equal((await fetch('/api/assistant',{question:'hello'})).status,429);assert.equal(calls,2);
+allowed=false;assert.equal((await fetch('/api/assistant',{question:'hello'})).status,429);assert.equal(calls,4);
 assert.equal((await fetch('/api/assistant')).status,405);
 assert.equal((await fetch('/unknown')).status,404);
 assert.equal((await fetch('/api/assistant',{question:'x'.repeat(25000)})).status,413);
