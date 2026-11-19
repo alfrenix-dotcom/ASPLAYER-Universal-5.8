@@ -1057,7 +1057,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.20"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.21"; }
         @JavascriptInterface public void checkPlayUpdate(){runOnUiThread(()->MainActivity.this.checkPlayUpdate(true));}
         @JavascriptInterface public void openPlayUpdate(){runOnUiThread(()->updateNotice.openStore());}
         @JavascriptInterface public boolean supportsPremiumGlass(){return canUsePremiumGlass();}
@@ -1144,7 +1144,11 @@ public final class MainActivity extends Activity {
                 try { startActivity(i); } catch (ActivityNotFoundException ignored) { }
             });
         }
-        @JavascriptInterface public void requestAsync(String raw, String id) {
+        @JavascriptInterface public void requestAsync(String raw, String id) { requestJson(raw,id,null); }
+        @JavascriptInterface public void requestAiAsync(String raw, String body, String id) {
+            requestJson(raw,id,body == null ? "" : body);
+        }
+        private void requestJson(String raw, String id, String body) {
             requests.execute(() -> {
                 String response = "{}";
                 HttpURLConnection connection = null;
@@ -1153,12 +1157,21 @@ public final class MainActivity extends Activity {
                     boolean provider = allowedProviderUrl(raw, false);
                     boolean secureBackend = "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
                     if (!provider && !secureBackend) throw new SecurityException("Request not allowed");
+                    if (body != null && (!secureBackend || uri.getUserInfo()!=null || uri.getQuery()!=null || uri.getFragment()!=null || !uri.getPath().matches(".*/api/(synopsis|assistant)") || body.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>24000)) throw new SecurityException("AI request not allowed");
                     connection = (HttpURLConnection) new URL(raw).openConnection();
                     connection.setConnectTimeout(9000);
                     connection.setReadTimeout(28000);
                     connection.setRequestProperty("Accept", "application/json");
                     connection.setRequestProperty("Accept-Encoding", "gzip");
                     connection.setInstanceFollowRedirects(false);
+                    if (body != null) {
+                        connection.setRequestMethod("POST");
+                        connection.setDoOutput(true);
+                        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                        byte[] payload=body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        connection.setFixedLengthStreamingMode(payload.length);
+                        try (java.io.OutputStream out=connection.getOutputStream()) { out.write(payload); }
+                    }
                     int status = connection.getResponseCode();
                     if (status < 200 || status >= 300) throw new Exception("Server HTTP " + status);
                     InputStream rawStream = connection.getInputStream();
@@ -1169,7 +1182,7 @@ public final class MainActivity extends Activity {
                         int count, total = 0;
                         while ((count = in.read(bytes)) != -1) {
                             total += count;
-                            if (total > 40 * 1024 * 1024) throw new Exception("Server response too large");
+                            if (total > (body==null ? 40 * 1024 * 1024 : 64 * 1024)) throw new Exception("Server response too large");
                             output.write(bytes, 0, count);
                         }
                         response = output.toString("UTF-8");
