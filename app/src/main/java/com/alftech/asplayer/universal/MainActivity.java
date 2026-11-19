@@ -72,8 +72,8 @@ public final class MainActivity extends Activity {
     private FrameLayout root;
     private WebView web;
     private VLCVideoLayout video;
-    private LinearLayout controls;
-    private Button playPause, repairVideoButton, audioButton, subtitlesButton, aspectButton;
+    private LinearLayout controls, transportRow, extrasRow;
+    private Button playPause, repairVideoButton, liveCloseButton, audioButton, subtitlesButton, aspectButton;
     private final ArrayList<List<View>> navigationRows=new ArrayList<>();
     private final ArrayList<Button> seekButtons=new ArrayList<>();
     private boolean remotePlayerMode, trackDialogOpen;
@@ -639,7 +639,7 @@ public final class MainActivity extends Activity {
         controls.addView(seekRow);
 
         addNavigationRow(seekRow);
-        LinearLayout transport=row();
+        LinearLayout transport=transportRow=row();
         addControl(transport,button("−30s",()->seekBy(-30000)),1,true);
         addControl(transport,button("−10s",()->seekBy(-10000)),1,true);
         playPause=button("Pause",this::togglePause);
@@ -648,7 +648,7 @@ public final class MainActivity extends Activity {
         addControl(transport,button("+30s",()->seekBy(30000)),1,true);
         controls.addView(transport);addNavigationRow(transport);
 
-        LinearLayout extras=row();
+        LinearLayout extras=extrasRow=row();
         addControl(extras,button("−5m",()->seekBy(-300000)),1,true);
         addControl(extras,button("+5m",()->seekBy(300000)),1,true);
         audioButton=button("Audio",()->chooseTrack(false));
@@ -662,6 +662,9 @@ public final class MainActivity extends Activity {
         LinearLayout repair=row();
         repairVideoButton=button(localized("Recuperar imagen","Recover video"),this::manualRepairVideo);
         addControl(repair,repairVideoButton,1,false);
+        liveCloseButton=button(localized("Cerrar reproducción","Close playback"),()->closePlayer(true));
+        addControl(repair,liveCloseButton,1,false);
+        liveCloseButton.setVisibility(View.GONE);
         controls.addView(repair);addNavigationRow(repair);
 
         FrameLayout.LayoutParams floating=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM);
@@ -669,6 +672,14 @@ public final class MainActivity extends Activity {
         root.addView(controls,floating);
         controls.setVisibility(View.GONE);
     }
+    // Live TV has only recover and close. Movie/series rows keep their existing layout.
+    private void configurePlaybackControls() {
+        transportRow.setVisibility(isLive?View.GONE:View.VISIBLE);
+        extrasRow.setVisibility(isLive?View.GONE:View.VISIBLE);
+        liveCloseButton.setVisibility(isLive?View.VISIBLE:View.GONE);
+        if(isLive)seekRow.setVisibility(View.GONE);
+    }
+    private Button defaultPlayerControl(){return isLive?repairVideoButton:playPause;}
     private void togglePause() {
         if(player==null)return;
         if(player.isPlaying())player.pause();else player.play();
@@ -695,13 +706,14 @@ public final class MainActivity extends Activity {
         if(subtitlesButton!=null)subtitlesButton.setText(localized("Subtítulos","Subtitles"));
         if(aspectButton!=null)aspectButton.setText("contain".equals(pictureMode)?localized("Ampliar","Fill screen"):localized("Ajustar","Fit screen"));
         if(repairVideoButton!=null)repairVideoButton.setText(localized("Recuperar imagen","Recover video"));
+        if(liveCloseButton!=null)liveCloseButton.setText(localized("Cerrar reproducción","Close playback"));
     }
     private void showControls() {
         if(!playerVisible||feedbackBlocking())return;
         controls.setVisibility(View.VISIBLE);
         syncTimeline();updatePlayerLabels();
-        if(remotePlayer()&&!trackDialogOpen&&!isInControls(getCurrentFocus())&&playPause!=null)
-            focusRemote(playPause);
+        if(remotePlayer()&&!trackDialogOpen&&(!isInControls(getCurrentFocus())||!selectable(getCurrentFocus())))
+            focusRemote(defaultPlayerControl());
         resetControlsTimer();
     }
     private boolean selectable(View v){return v!=null&&v.isShown()&&v.isEnabled()&&v.isFocusable();}
@@ -729,7 +741,7 @@ public final class MainActivity extends Activity {
             }
             return;
         }
-        if(playPause!=null)focusRemote(playPause);
+        focusRemote(defaultPlayerControl());
     }
     private void seekTo(long at) {
         if(!canSeek())return;
@@ -765,6 +777,7 @@ public final class MainActivity extends Activity {
             return true;
         }
         if(transport){
+            if(isLive){showControls();return true;}
             if(key==KeyEvent.KEYCODE_MEDIA_REWIND)seekBy(-10000);
             else if(key==KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)seekBy(10000);
             else if(event.getRepeatCount()==0&&player!=null){
@@ -847,6 +860,7 @@ public final class MainActivity extends Activity {
     private void startMediaInternal(String url,long resumeMs) {
         if(player==null)return;
         isLive=url.contains("/live/");
+        configurePlaybackControls();
         try {
             cancelVideoWatchdog();
             videoOutputSeen=false;
@@ -1057,7 +1071,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.23"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.24"; }
         @JavascriptInterface public void checkPlayUpdate(){runOnUiThread(()->MainActivity.this.checkPlayUpdate(true));}
         @JavascriptInterface public void openPlayUpdate(){runOnUiThread(()->updateNotice.openStore());}
         @JavascriptInterface public boolean supportsPremiumGlass(){return canUsePremiumGlass();}

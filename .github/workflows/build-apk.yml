@@ -48,6 +48,11 @@ jobs:
           assert "lockBackground" in js and "waitingEpisode" in js
           assert "tv-catalog-layout" in js and "catalogDirection(e.key)" in js
           assert "isAndroidTv()" in java and "movePlayerFocus(key)" in java and "selected==timeline" in java
+          assert 'transportRow.setVisibility(isLive?View.GONE:View.VISIBLE)' in java
+          assert 'extrasRow.setVisibility(isLive?View.GONE:View.VISIBLE)' in java
+          assert 'liveCloseButton.setVisibility(isLive?View.VISIBLE:View.GONE)' in java
+          assert 'return isLive?repairVideoButton:playPause' in java
+          assert 'isLive=url.contains("/live/");\n        configurePlaybackControls();' in java
           assert 'profile="adaptive"' in java
           assert "settings.bufferProfile||'adaptive'" in Path('app/src/main/assets/features-5.8.js').read_text()
           with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('name='+name+'\n')
