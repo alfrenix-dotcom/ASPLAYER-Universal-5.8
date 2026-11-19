@@ -1,6 +1,8 @@
 {
   "name": "asplayer-ai",
   "main": "worker.mjs",
+  "workers_dev": true,
+  "preview_urls": false,
   "compatibility_date": "2026-11-19",
   "ai": { "binding": "AI" },
   "ratelimits": [{ "name": "AI_LIMIT", "namespace_id": "5921", "simple": { "limit": 5, "period": 60 } }],
