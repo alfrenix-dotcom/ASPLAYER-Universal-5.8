@@ -31,8 +31,8 @@ for(const id of ['password','settings-password','parent-pin','unlock-pin']){
  toggle.className='password-toggle';toggle.dataset.passwordToggle=id;
  toggle.setAttribute('aria-controls',id);toggle.setAttribute('aria-pressed','false');
  group.appendChild(toggle);
- const paint=()=>{const visible=input.type==='text';toggle.textContent=visible?'🙈':'👁';toggle.title=tr(visible?'concealPassword':'revealPassword');toggle.setAttribute('aria-label',toggle.title);toggle.setAttribute('aria-pressed',String(visible))};
- toggle.addEventListener('click',()=>{const pos=input.selectionStart;input.type=input.type==='password'?'text':'password';paint();input.focus();try{input.setSelectionRange(pos,pos)}catch(_){}});
+ const paint=()=>{const visible=input.type==='text';toggle.textContent=tr(visible?'concealPassword':'revealPassword');toggle.title=toggle.textContent;toggle.setAttribute('aria-label',toggle.title);toggle.setAttribute('aria-pressed',String(visible))};
+ toggle.addEventListener('click',()=>{input.type=input.type==='password'?'text':'password';paint();});
  paint();
 }
 
@@ -47,8 +47,10 @@ function renderBufferUI(){
  E('buffer-heading').textContent=tr('bufferHeading');E('buffer-description').textContent=tr('bufferDescription');
  E('buffer-switch-label').textContent=tr('bufferSwitch');E('buffer-note').textContent=tr(enableBuffer?'bufferOn':'bufferOff');
  E('buffer-enabled').checked=enableBuffer;
- for(const node of document.querySelectorAll('.password-toggle')){const input=E(node.dataset.passwordToggle),shown=input.type==='text';node.title=tr(shown?'concealPassword':'revealPassword');node.setAttribute('aria-label',node.title)}
+ for(const node of document.querySelectorAll('.password-toggle')){const input=E(node.dataset.passwordToggle),shown=input.type==='text';node.textContent=node.title=tr(shown?'concealPassword':'revealPassword');node.setAttribute('aria-label',node.title);node.setAttribute('aria-pressed',String(shown))}
 }
+const previousDisplayAuth=displayAuth;
+displayAuth=function(){previousDisplayAuth.apply(this,arguments);for(const id of ['password','settings-password'])if(E(id))E(id).type='password';renderBufferUI()};
 E('buffer-enabled').addEventListener('change',event=>{
  enableBuffer=event.target.checked;saveSettings();renderBufferUI();
  E('video').preload=enableBuffer?'auto':'metadata';
@@ -168,9 +170,9 @@ video.addEventListener('progress',()=>{
 });
 
 const uiStyle=document.createElement('style');uiStyle.textContent=`
-.password-group{position:relative;width:100%}
-.password-group input{width:100%;padding-right:57px}
-.password-toggle{position:absolute;top:1px;right:2px;width:47px;height:43px;min-height:43px;background:#152643;border:1px solid #33516b;border-radius:9px;color:#7eecf3;font-size:26px;line-height:1;display:grid;place-items:center}
+.password-group{display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%}
+.password-group input{width:100%;min-width:0}
+.password-toggle{position:static;width:100%;min-height:44px;padding:9px 12px;background:#152643;border:1px solid #33516b;border-radius:9px;color:#7eecf3;font-size:14px;line-height:1.3;display:grid;place-items:center}
 .password-toggle:focus-visible{outline:3px solid #f9d77a;outline-offset:1px}
 .buffer-setting .buffer-option{display:flex;align-items:center;gap:12px;margin:18px 0 5px;cursor:pointer}
 .buffer-setting .buffer-option input{width:24px;height:24px;min-height:24px;flex:none;margin:0;accent-color:#58dce4}

@@ -100,6 +100,7 @@ public final class MainActivity extends Activity {
     private boolean playbackStarted, playbackFailed, rebufferWaiting;
     private String decoderMode="auto", activeMediaUrl="";
     private boolean usingSoftwareFallback, videoOutputSeen;
+    private boolean reportedReady, resumeOpening;
     // Video filters can be costly on inexpensive TV boxes. Disabled by default.
     private String enhancement="off";
     private int rebufferCount=0, liveRebufferCount=0;
@@ -231,6 +232,9 @@ public final class MainActivity extends Activity {
         vlcOptions.add("--skip-frames");
         vlc = new LibVLC(this,vlcOptions);
         player = new MediaPlayer(vlc);
+        // Warm Android's codec discovery while the user is browsing or signing in.
+        // No hidden stream, provider request, decode session or extra connection.
+        requests.execute(()->{try{new android.media.MediaCodecList(android.media.MediaCodecList.ALL_CODECS).getCodecInfos();}catch(RuntimeException ignored){}});
         player.setEventListener(e -> {
             final long eventAttempt=playbackAttempt;
             handler.post(() -> {
@@ -242,6 +246,7 @@ public final class MainActivity extends Activity {
                         videoOutputSeen=true;
                         cancelVideoWatchdog();
                         if(playbackStarted && !rebufferWaiting){
+                            reportVideoReady();
                             boolean opening=controls.getVisibility()!=View.VISIBLE&&playbackFeedback.getVisibility()==View.VISIBLE;
                             hidePlaybackFeedback();
                             if(opening)showControls();
@@ -260,11 +265,12 @@ public final class MainActivity extends Activity {
                     cancelPlaybackDeadline();
                     handler.removeCallbacks(showRebuffer);
                     if(videoOutputSeen) {
+                        reportVideoReady();
                         cancelVideoWatchdog();
                         hidePlaybackFeedback();
                     } else {
                         showLoadingFeedback();
-                        scheduleVideoWatchdog(12000);
+                        scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(profile));
                     }
                     syncTimeline();
                     updatePlayerLabels();
@@ -284,8 +290,8 @@ public final class MainActivity extends Activity {
                         handler.removeCallbacks(showRebuffer);
                         if(playbackStarted){
                             cancelPlaybackDeadline();
-                            if(videoOutputSeen)hidePlaybackFeedback();
-                            else scheduleVideoWatchdog(12000);
+                            if(videoOutputSeen){reportVideoReady();hidePlaybackFeedback();}
+                            else scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(profile));
                         }
                     } else if(playbackStarted && !rebufferWaiting) {
                         rebufferWaiting=true;
@@ -435,9 +441,11 @@ public final class MainActivity extends Activity {
         videoWatchdog=null;
     }
     private void scheduleVideoWatchdog(long milliseconds) {
-        cancelVideoWatchdog();
+        // Buffer-complete events must not postpone the missing-video watchdog.
+        if(videoWatchdog!=null)return;
         final long attempt=playbackAttempt;
         videoWatchdog=()->{
+            videoWatchdog=null;
             if(playerVisible && !playbackFailed && playbackAttempt==attempt
                     && playbackStarted && !videoOutputSeen) {
                 // Audio may already be playing: try software decode only once.
@@ -445,6 +453,15 @@ public final class MainActivity extends Activity {
             }
         };
         handler.postDelayed(videoWatchdog,milliseconds);
+    }
+    private void reportVideoReady(){
+        if(reportedReady)return;
+        reportedReady=true;
+        if(isLive)try{
+            JSONObject e=new JSONObject();e.put("type","videoReady");
+            e.put("transport",activeMediaUrl.toLowerCase(Locale.ROOT).endsWith(".m3u8")?"m3u8":"ts");
+            sendEvent(e);
+        }catch(Exception ignored){}
     }
     private boolean useSoftwareDecoder() {
         return "software".equals(decoderMode) || usingSoftwareFallback;
@@ -899,6 +916,7 @@ public final class MainActivity extends Activity {
             playbackAttempt++;
             videoOutputSeen=false;
             playbackStarted=false;
+            reportedReady=false;
             pendingResumeMs=resumeMs;
             lastSeekAt=0;stableSince=0;
             playbackFailed=false;
@@ -1075,7 +1093,15 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.25"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.26"; }
+        @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
+            runOnUiThread(()->{
+                AnnouncementJobService.configure(MainActivity.this,enabled,language);
+                if(enabled&&foreground)maybeRequestNoticePermission(false);
+            });
+        }
+        @JavascriptInterface public void requestNoticePermission(){runOnUiThread(()->maybeRequestNoticePermission(true));}
+        @JavascriptInterface public void markNoticeSeen(String id){runOnUiThread(()->AnnouncementJobService.markSeen(MainActivity.this,id));}
         @JavascriptInterface public void checkPlayUpdate(){runOnUiThread(()->MainActivity.this.checkPlayUpdate(true));}
         @JavascriptInterface public void openPlayUpdate(){runOnUiThread(()->updateNotice.openStore());}
         @JavascriptInterface public boolean supportsPremiumGlass(){return canUsePremiumGlass();}
@@ -1235,6 +1261,7 @@ public final class MainActivity extends Activity {
         else evaluate("window.ASPLAYER_BACK&&window.ASPLAYER_BACK();");
     }
     @Override protected void onStop() {
+        resumeOpening=playerVisible&&(!playbackStarted||!videoOutputSeen)&&!playbackFailed;
         if(playerVisible&&player!=null){sendPosition(false);player.pause();}
         cancelPlaybackDeadline();
         cancelVideoWatchdog();
@@ -1253,9 +1280,30 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume(){
         super.onResume();foreground=true;
+        AnnouncementJobService.setForeground(true);
+        if(resumeOpening&&playerVisible&&!playbackFailed&&player!=null){
+            resumeOpening=false;player.play();
+            if(playbackStarted&&!videoOutputSeen)scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(profile));
+            else if(!playbackStarted)schedulePlaybackDeadline(LivePlaybackPolicy.startupTimeout(isLive,profile,triedLiveFallback||!allowLiveFallback,activeMediaUrl));
+        }
+        if(AnnouncementJobService.enabled(this))maybeRequestNoticePermission(false);
         handler.postDelayed(()->{if(foreground&&!isFinishing())checkPlayUpdate(false);},1500);
     }
-    @Override protected void onPause(){foreground=false;super.onPause();}
+    @Override protected void onPause(){foreground=false;AnnouncementJobService.setForeground(false);super.onPause();}
+    private void maybeRequestNoticePermission(boolean manual){
+        if(isFinishing()||!foreground)return;
+        if(AnnouncementJobService.hasPermission(this)){
+            if(manual&&android.os.Build.VERSION.SDK_INT>=26)try{startActivity(new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,getPackageName()));}catch(RuntimeException ignored){}
+            return;
+        }
+        SharedPreferences p=getSharedPreferences("asplayer_notice_permission",MODE_PRIVATE);
+        if(p.getBoolean("asked",false)){
+            if(manual)try{startActivity(new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,getPackageName()));}catch(RuntimeException ignored){}
+            return;
+        }
+        p.edit().putBoolean("asked",true).apply();
+        requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},AnnouncementJobService.PERMISSION_REQUEST);
+    }
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] results){
         super.onRequestPermissionsResult(requestCode,permissions,results);
         if(requestCode==PlayUpdateNotice.PERMISSION_REQUEST&&updateNotice!=null)updateNotice.notifyAvailable("es".equals(uiLanguage),false);

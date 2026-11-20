@@ -9,6 +9,15 @@ const {pathToFileURL}=require('node:url');
     page.on('pageerror',e=>console.log('page error',e.message));
     await page.addInitScript(()=>{window.ASPLAYER={isAndroidTv:()=>true};});
     await page.goto(pathToFileURL(path.resolve('app/src/main/assets/index.html')).href);
+    const password=page.locator('#password'),toggle=page.locator('[data-password-toggle="password"]');
+    assert(await password.isVisible());assert(await toggle.isVisible());
+    const pbox=await password.boundingBox(),tbox=await toggle.boundingBox();
+    assert(tbox.y>=pbox.y+pbox.height-1,'Password toggle must not overlap input');
+    await password.focus();await page.keyboard.press('ArrowDown');
+    assert.equal(await toggle.evaluate(el=>el===document.activeElement),true);
+    await page.keyboard.press('Enter');assert.equal(await password.getAttribute('type'),'text');
+    await page.keyboard.press('Enter');assert.equal(await password.getAttribute('type'),'password');
+    await page.keyboard.press('ArrowUp');assert.equal(await password.evaluate(el=>el===document.activeElement),true);
     const verifyHome=async(p,touch=false)=>{
       await p.evaluate(()=>{
         document.querySelector('#auth-screen').classList.add('hidden');
@@ -211,7 +220,7 @@ const {pathToFileURL}=require('node:url');
       play({stream_id:'101',name:'Channel 101'},'live');
     });
     assert.deepEqual(await native.evaluate(()=>nativeCalls.map(x=>x[0])),['playMedia']);
-    assert.match(await native.evaluate(()=>nativeCalls[0][1]),/\/101\.ts$/);
+    assert.match(await native.evaluate(()=>nativeCalls[0][1]),/\/101\.m3u8$/);
     assert.equal(await native.evaluate(()=>nativeCalls[0][2]),'adaptive');
     assert.equal(await native.locator('#modern-player').evaluate(el=>el.classList.contains('hidden')),true);
     assert.equal(await native.evaluate(()=>load(HISTORY_KEY,{})[sessionPrefix()].live[0].id),'101');
@@ -229,6 +238,8 @@ const {pathToFileURL}=require('node:url');
       play({stream_id:'103',name:'Channel 103'},'live');
     });
     assert.match(await native.evaluate(()=>nativeCalls[0][1]),/\/103\.m3u8$/);
+    await native.evaluate(()=>{window.ASPLAYER58_EVENT({type:'videoReady',transport:'ts'});window.ASPLAYER58_EVENT({type:'closed'});nativeCalls=[];play({stream_id:'104',name:'Channel 104'},'live');});
+    assert.match(await native.evaluate(()=>nativeCalls[0][1]),/\/104\.ts$/);
     console.log('PASS: channel starts once through native LibVLC, respects advertised formats and buffer preferences');
   }finally{await browser.close();}
 })().catch(err=>{console.error(err);process.exitCode=1});

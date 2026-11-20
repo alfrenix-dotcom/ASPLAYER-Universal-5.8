@@ -212,6 +212,15 @@ document.addEventListener('keydown',e=>{
     consume(e);if(!e.repeat)a.click();return;
   }
   if(!arrow)return;
+  // The password toggle is a distinct focus target below its input on TV.
+  if(e.key==='ArrowDown'&&a?.matches('.password-group input')){
+    const toggle=a.parentElement.querySelector('.password-toggle');
+    if(toggle){consume(e);focusElement(toggle);return;}
+  }
+  if(e.key==='ArrowUp'&&a?.matches('.password-toggle')){
+    const input=a.parentElement.querySelector('input');
+    if(input){consume(e);focusElement(input);return;}
+  }
   const horizontal=e.key==='ArrowLeft'||e.key==='ArrowRight';
   // Allow native text editing, dropdown choices and timeline adjustment.
   if(tag==='TEXTAREA'||a?.isContentEditable||
@@ -467,7 +476,7 @@ vpnCheck.addEventListener('change',()=>{
   if(vpnCheck.checked)warpButton.click();
 });
 function localize(){
-  version.textContent='ASPLAYER Universal 5.9.25 · LibVLC 3.7.7 · Alftech Solutions';
+  version.textContent='ASPLAYER Universal 5.9.26 · LibVLC 3.7.7 · Alftech Solutions';
   heading.textContent=t('Imagen, rendimiento y conexión','Picture, performance and connection');
   sharpLabel.textContent=t('Mejora de nitidez (experimental)','Sharpness enhancement (experimental)');
   sharp.options[0].textContent=t('Normal (recomendado)','Normal (recommended)');
@@ -487,7 +496,7 @@ if(place)place.appendChild(panel);
 // Make the actual version visible on the existing About text as well.
 for(const el of document.querySelectorAll('#view-settings p')){
   if(el===version)continue;
-  if(/ASPLAYER Universal 5\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 5.9.25 · LibVLC/VLC · Alftech Solutions';
+  if(/ASPLAYER Universal 5\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 5.9.26 · LibVLC/VLC · Alftech Solutions';
 }
 if(typeof languageUI==='function'){
  const prior=languageUI;languageUI=function(){prior.apply(this,arguments);localize();};

@@ -20,8 +20,11 @@ final class LivePlaybackPolicy {
     }
 
     static long startupTimeout(boolean live, String profile, boolean triedAlternate, String url) {
-        if (live && !triedAlternate && ("adaptive".equals(profile) || "fast".equals(profile))
-                && !alternate(url).isEmpty()) return 9000L;
-        return 30000L;
+        boolean quick = "adaptive".equals(profile) || "fast".equals(profile);
+        if (live && !triedAlternate && quick && !alternate(url).isEmpty()) return 7000L;
+        if ("ultra".equals(profile)) return 25000L;
+        if (!quick) return 18000L;
+        return live ? 12000L : 16000L;
     }
+    static long videoOutputTimeout(String profile) { return "ultra".equals(profile) ? 12000L : 7000L; }
 }

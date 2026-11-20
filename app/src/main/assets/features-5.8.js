@@ -11,6 +11,8 @@ const get=id=>document.getElementById(id);
 function syncNativeLanguage(){try{bridge.setUiLanguage(lang)}catch(_){}}
 syncNativeLanguage();
 let currentItem=null,currentMode=null,currentId='',currentPrefix='',nativeVisible=false;
+// Remember the last format which delivered video, for this account in this app session.
+const workingLiveFormats=new Map();
 const idOf=item=>String(item?.stream_id??item?.series_id??item?.id??item?.name??'');
 function liveExtension(account,profile){
   if(settings.liveFormat==='hls')return 'm3u8';
@@ -21,7 +23,7 @@ function liveExtension(account,profile){
   const hls=advertised.includes('m3u8')||advertised.includes('hls');
   if(ts&&!hls)return 'ts';
   if(hls&&!ts)return 'm3u8';
-  return profile==='adaptive'||profile==='fast'?'ts':'m3u8';
+  return workingLiveFormats.get(sessionPrefix())||'m3u8';
 }
 const oldPlay=play;
 play=function(item,mode){
@@ -84,7 +86,10 @@ function rememberNativeProgress(ms,durationMs,ended){
 }
 window.ASPLAYER58_EVENT=function(event){
   if(!event||!event.type)return;
-  if(event.type==='position'){
+  if(event.type==='videoReady'&&currentMode==='live'&&currentPrefix===sessionPrefix()&&
+     !['hls','mpegts'].includes(settings.liveFormat)&&['m3u8','ts'].includes(event.transport)){
+    workingLiveFormats.set(currentPrefix,event.transport);
+  }else if(event.type==='position'){
     rememberNativeProgress(event.position,event.duration,event.ended);
   }else if(event.type==='ended'){
     /* Final position arrives in the preceding position event. */

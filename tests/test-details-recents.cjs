@@ -47,7 +47,7 @@ const path=require('node:path');
    assert.equal(await page.locator('#live-stream-format').inputValue(),'default');
    await page.evaluate(()=>{settings.bufferProfile='adaptive';play({stream_id:'1',name:'Live'},'live');settings.liveFormat='hls';play({stream_id:'2',name:'Live'},'live');settings.liveFormat='mpegts';play({stream_id:'3',name:'Live'},'live');});
    const calls=await page.evaluate(()=>window.calls.filter(c=>['auto','manual'].includes(c[0])).map(c=>[c[0],c[1].split('/').pop()]));
-   assert.deepEqual(calls,[['auto','1.ts'],['manual','2.m3u8'],['manual','3.ts']]);
+   assert.deepEqual(calls,[['auto','1.m3u8'],['manual','2.m3u8'],['manual','3.ts']]);
    await page.evaluate(()=>window.ASPLAYER_UPDATE_RESULT('available',5922));
    assert.match(await page.locator('#view-home section.box').first().innerText(),/new version/i);
    assert.deepEqual(errors,[]);await page.close();

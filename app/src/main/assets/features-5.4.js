@@ -73,7 +73,7 @@ function loadNewSettings(){
  if(get('synopsis-source'))get('synopsis-source').value=synopsisSource;
  if(get('online-endpoint')&&document.activeElement!==get('online-endpoint'))get('online-endpoint').value=onlineEndpoint;
 }
-function persist(){settings.order=sortMode;settings.epgSource=epgSource;settings.synopsisSource=synopsisSource;settings.onlineEndpoint=onlineEndpoint;saveSettings()}
+function persist(){settings.order=sortMode;settings.epgSource=epgSource;settings.synopsisSource=synopsisSource;settings.onlineEndpoint=onlineEndpoint;saveSettings();syncBackgroundNotices()}
 get('order-content').addEventListener('change',e=>{sortMode=['new','old','rated'].includes(e.target.value)?e.target.value:'new';persist();if(['vod','series'].includes(active)){visible=32;applyFilter()}});
 get('epg-source').addEventListener('change',e=>{epgSource='server';persist();if(epgSource==='ai'&&!onlineEndpoint)toast(tr('endpointMissing'))});
 get('synopsis-source').addEventListener('change',e=>{synopsisSource=e.target.value==='ai'?'ai':'server';persist();if(synopsisSource==='ai'&&!onlineEndpoint)toast(tr('endpointMissing'))});
@@ -126,10 +126,29 @@ async function maybeEnhanceSynopsis(it,version,mode,info={}){
 }
 const movieOld=showMovie;showMovie=async function(it){const task=movieOld(it),version=detailVersion;const info=await task;return maybeEnhanceSynopsis(it,version,'movie',info)};
 const seriesOld=showSeries;showSeries=async function(it){const task=seriesOld(it),version=detailVersion;const info=await task;return maybeEnhanceSynopsis(it,version,'series',info)};
-// Floating event banner. The service controls when/what to show. No background push service.
+// Background polling is limited to the official Worker; custom endpoints retain the in-app banner only.
+const noticeSetting=document.createElement('div');noticeSetting.className='setting';
+noticeSetting.innerHTML='<h3 id="bg-notices-title"></h3><label class="buffer-option"><input type="checkbox" id="bg-notices-enabled"> <span id="bg-notices-label"></span></label><p class="tiny" id="bg-notices-help"></p><button type="button" class="ghost" id="bg-notices-permission"></button>';
+get('online-status').parentElement.appendChild(noticeSetting);
+function syncBackgroundNotices(){
+ const official=onlineEndpoint===DEFAULT_AI_ENDPOINT,enabled=settings.backgroundNotices!==false;
+ get('bg-notices-enabled').checked=enabled;get('bg-notices-enabled').disabled=!official;
+ get('bg-notices-permission').disabled=!official||!enabled;
+ try{if(official){const seen=localStorage.getItem('asplayer:notices:seen');if(seen)window.ASPLAYER?.markNoticeSeen?.(seen)}window.ASPLAYER?.setNoticeSettings?.(official&&enabled,lang)}catch(_){}
+}
+function localizeBackgroundNotices(){const es=lang==='es';
+ get('bg-notices-title').textContent=es?'Avisos con la app cerrada':'Notices while app is closed';
+ get('bg-notices-label').textContent=es?'Recibir notificaciones oficiales':'Receive official notifications';
+ get('bg-notices-help').textContent=es?'Android consulta el Worker periódicamente (aprox. 15 min o más). Requiere permiso; no funciona tras forzar detención.':'Android checks the Worker periodically (about 15 min or longer). Permission required; unavailable after force stop.';
+ get('bg-notices-permission').textContent=es?'Permitir notificaciones':'Allow notifications';syncBackgroundNotices();
+}
+get('bg-notices-enabled').addEventListener('change',e=>{settings.backgroundNotices=e.target.checked;saveSettings();syncBackgroundNotices()});
+get('bg-notices-permission').addEventListener('click',()=>window.ASPLAYER?.requestNoticePermission?.());
+const noticeLanguage=languageUI;languageUI=function(){noticeLanguage();localizeBackgroundNotices()};
+// Floating event banner keeps its existing contract, independently of the OS notification permission.
 async function checkAnnouncements(notify=false){if(!onlineEndpoint){if(notify)get('online-status').textContent=tr('serviceInactive');return}if(Date.now()-lastCheck<60000&&!notify)return;lastCheck=Date.now();try{const r=await backend('/api/announcements',{app:'asplayer',lang});const n=r?.announcement||r?.notice||null;const message=String(n?.message||'').trim().slice(0,400);const id=String(n?.id||'');const key='asplayer:notices:seen';if(!id||!message||n?.active===false||localStorage.getItem(key)===id){if(notify)get('online-status').textContent=tr('noNewNotice');return}if(n?.expires_at&&Date.parse(n.expires_at)<Date.now())return;get('announcement-message').textContent=message;get('announcement').dataset.notice=id;get('announcement').classList.remove('hidden');if(notify)get('online-status').textContent='✓'}catch(_){if(notify)get('online-status').textContent=tr('noticesError')}}
 get('check-notice').addEventListener('click',()=>checkAnnouncements(true));
-get('dismiss-announcement').addEventListener('click',()=>{const el=get('announcement');if(el.dataset.notice)localStorage.setItem('asplayer:notices:seen',el.dataset.notice);el.classList.add('hidden')});
+get('dismiss-announcement').addEventListener('click',()=>{const el=get('announcement');if(el.dataset.notice){localStorage.setItem('asplayer:notices:seen',el.dataset.notice);if(onlineEndpoint===DEFAULT_AI_ENDPOINT)window.ASPLAYER?.markNoticeSeen?.(el.dataset.notice)}el.classList.add('hidden')});
 // Honor the chosen aspect in either orientation (Fit is the default).
 function updateResponsivePlayer(){const v=get('video');if(!v)return;v.style.objectFit=playAspect}
 const oldOpenPlayer=openPlayer;openPlayer=function(){oldOpenPlayer();updateResponsivePlayer()};
