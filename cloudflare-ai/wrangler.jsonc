@@ -5,6 +5,8 @@
   "preview_urls": false,
   "compatibility_date": "2026-11-19",
   "ai": { "binding": "AI" },
-  "ratelimits": [{ "name": "AI_LIMIT", "namespace_id": "5921", "simple": { "limit": 5, "period": 60 } }],
+  "ratelimits": [{ "name": "AI_LIMIT", "namespace_id": "5921", "simple": { "limit": 5, "period": 60 } }, { "name": "ADMIN_LIMIT", "namespace_id": "5927", "simple": { "limit": 15, "period": 60 } }],
+  "durable_objects": { "bindings": [{ "name": "NOTICES", "class_name": "NoticeStore" }] },
+  "migrations": [{ "tag": "notice-v1", "new_sqlite_classes": ["NoticeStore"] }],
   "observability": { "enabled": false }
 }

@@ -1,4 +1,6 @@
 // ASPLAYER optional HTTPS service; no subscription credentials, API keys or catalog storage.
+import {handleNotices,NoticeStore} from './notices.mjs';
+export {NoticeStore};
 const MODEL='@cf/google/gemma-4-26b-a4b-it';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const clean=(s,max)=>typeof s==='string'?s.trim().slice(0,max):'';
@@ -7,10 +9,8 @@ const langOf=x=>x==='es'?'Spanish':'English';
 async function inference(env,system,data,max_tokens,structured=false){const result=await env.AI.run(MODEL,{messages:[{role:'system',content:system},{role:'user',content:JSON.stringify(data)}],max_completion_tokens:max_tokens,temperature:0.2,chat_template_kwargs:{enable_thinking:false},...(structured?{response_format:{type:'json_object'}}:{})});const value=result?.choices?.[0]?.message?.content??result?.response;if(structured&&value&&typeof value==='object')return JSON.stringify(value);return clean(value,3500)}
 export default {async fetch(request,env){
  const url=new URL(request.url),path=url.pathname;
- if(request.method==='GET'&&path==='/')return json({service:'ASPLAYER AI',version:3,appVersion:'5.9.25',features:['synopsis-translation','synopsis-generation','assistant']});
- if(request.method==='GET'&&path==='/api/announcements'){
-  const lang=url.searchParams.get('lang')==='es'?'ES':'EN',message=clean(env['NOTICE_'+lang],400),id=clean(env.NOTICE_ID,100);return json({announcement:id&&message?{id,message,active:true}:null});
- }
+ if(request.method==='GET'&&path==='/')return json({service:'ASPLAYER AI',version:4,appVersion:'5.9.25',features:['synopsis-translation','synopsis-generation','assistant','announcements-admin']});
+ if(path==='/admin'||path==='/api/announcements'||path.startsWith('/api/admin/notices'))return handleNotices(request,env,inference);
  // 5.9.20 sends no original synopsis, so don't invent a "verified" plot.
  if(request.method==='GET'&&path==='/api/synopsis')return json({verified:false});
  if(!['/api/assistant','/api/synopsis'].includes(path))return error('Not found',404);

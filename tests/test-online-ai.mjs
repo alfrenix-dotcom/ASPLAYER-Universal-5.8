@@ -4,7 +4,7 @@ let calls=0,allowed=true;
 const env={AI_LIMIT:{limit:async()=>({success:allowed})},AI:{run:async(model,params)=>{calls++;assert.match(model,/gemma-4/);const data=JSON.parse(params.messages[1].content);assert(!('password' in data));if(!data.original)assert.equal(params.response_format.type,'json_object');let content=data.original?'Translated provider text':data.title?JSON.stringify({known:data.title!=='Unknown',synopsis:data.title==='Unknown'?'':'Sinopsis sugerida'}):JSON.stringify({mode:'search',answer:'Try comedy',keywords:['comedy','comedia']});if(data.title&&!data.original)assert.match(params.messages[0].content,/Spanish/);return {choices:[{message:{content}}]}}},NOTICE_ID:'notice1',NOTICE_ES:'Hola'};
 const req=(path,body)=>new Request('https://example.workers.dev'+path,body===undefined?{}:{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
 const fetch=(path,body)=>worker.fetch(req(path,body),env);
-assert.deepEqual(await (await fetch('/')).json(),{service:'ASPLAYER AI',version:3,appVersion:'5.9.25',features:['synopsis-translation','synopsis-generation','assistant']});
+assert.deepEqual(await (await fetch('/')).json(),{service:'ASPLAYER AI',version:4,appVersion:'5.9.25',features:['synopsis-translation','synopsis-generation','assistant','announcements-admin']});
 assert.equal((await (await fetch('/api/announcements?lang=es')).json()).announcement.message,'Hola');
 assert.equal((await (await fetch('/api/synopsis?title=Unknown')).json()).verified,false);
 assert.equal((await fetch('/api/synopsis',{title:'Test'})).status,400);

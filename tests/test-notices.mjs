@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import worker,{NoticeStore} from '../cloudflare-ai/worker.mjs';
+
+let rows,allowed=true,aiCalls=0;
+const storage={get:async()=>structuredClone(rows),put:async(_key,value)=>{rows=structuredClone(value)},transaction:async callback=>callback(storage)};
+const object=new NoticeStore({storage});
+const token='local-test-only-not-a-real-token-123456';
+const env={NOTICE_ADMIN_TOKEN:token,ADMIN_LIMIT:{limit:async()=>({success:allowed})},AI_LIMIT:{limit:async()=>({success:true})},AI:{run:async(_model,input)=>{aiCalls++;assert.equal(JSON.parse(input.messages[1].content).message,'Hola');return {response:'Hello'}}},NOTICES:{idFromName:n=>n,get:()=>({fetch:(url,opts)=>object.fetch(new Request(url,opts))})},NOTICE_ID:'legacy',NOTICE_ES:'Aviso anterior',NOTICE_EN:'Previous notice'};
+const request=(path,opts={},bindings=env)=>worker.fetch(new Request('https://example.workers.dev'+path,opts),bindings);
+const admin=(path,data,auth=token,method=data===undefined?'GET':'POST')=>request('/api/admin/notices'+path,{method,headers:{Authorization:'Bearer '+auth,'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)})});
+const get=async(lang='es')=>(await (await request('/api/announcements?lang='+lang)).json());
+assert.equal((await get()).announcement.id,'legacy');
+const page=await request('/admin');assert.equal(page.status,200);assert.match(page.headers.get('Content-Security-Policy'),/frame-ancestors 'none'/);assert.match(await page.text(),/Centro de avisos/);
+assert.equal((await request('/api/admin/notices')).status,401);
+assert.equal((await admin('',{es:'x',en:'x'},'wrong')).status,401);
+assert.equal((await request('/api/admin/notices',{}, {...env,NOTICE_ADMIN_TOKEN:undefined})).status,503);
+assert.equal((await admin('',{es:'x'.repeat(401),en:'x'})).status,400);
+assert.equal((await admin('',{es:'x',en:'x',expires_at:new Date(Date.now()-3600).toISOString()})).status,400);
+assert.equal(aiCalls,0);
+const translated=await admin('/translate',{message:'Hola',target:'en'});assert.deepEqual(await translated.json(),{message:'Hello'});assert.equal(aiCalls,1);
+const created=await admin('',{es:'Mantenimiento',en:'Maintenance'});assert.equal(created.status,201);const {notice}=await created.json();
+assert.equal((await get()).announcement.message,'Mantenimiento');assert.equal((await get('en')).announcement.message,'Maintenance');assert.equal((await get()).announcement.id,notice.id);
+assert.equal((await get()).announcements.length,1);assert(!JSON.stringify(await get()).includes(token));
+const future=await admin('',{es:'Próximo aviso',en:'Future notice',starts_at:new Date(Date.now()+3600000).toISOString(),expires_at:new Date(Date.now()+7200000).toISOString()});assert.equal(future.status,201);assert.equal((await get()).announcement.id,notice.id);
+assert.equal((await (await admin('')).json()).notices.length,2);
+assert.equal((await admin('/revoke',{id:notice.id})).status,200);assert.equal((await get()).announcement,null);
+allowed=false;assert.equal((await admin('')).status,429);assert.equal((await get()).announcement,null);
+console.log('PASS: admin authentication, bilingual notices, legacy client, translation, scheduling, withdrawal, rate limiting and fail-closed configuration');

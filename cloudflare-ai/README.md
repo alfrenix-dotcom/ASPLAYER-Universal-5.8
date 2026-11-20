@@ -1,5 +1,14 @@
 # ASPLAYER 5.9.21 · Servicio opcional Workers AI
 
+## Centro de avisos (Worker v4; compatible con ASPLAYER 5.9.25 sin nuevo AAB)
+
+- Abrir `https://asplayer-ai.alfrenix.workers.dev/admin` desde un navegador. El panel no contiene credenciales ni guarda la contraseña en el dispositivo.
+- En Cloudflare, Workers & Pages → `asplayer-ai` → Settings → Variables and Secrets, añadir un **Secret** de nombre `NOTICE_ADMIN_TOKEN` con una contraseña aleatoria exclusiva de al menos 24 caracteres (preferiblemente 32 o más). Guardarla en un administrador de contraseñas; nunca en GitHub, APK, chat ni texto plano. El panel permanece cerrado si falta el secreto.
+- El despliegue configura el objeto Durable SQLite `NOTICES` y el límite `ADMIN_LIMIT`. Mantener Workers Free; no habilitar facturación.
+- Escribir el mensaje ES/EN, traducir el otro idioma con IA si se desea, revisar la vista previa, elegir publicación/retirada opcionales y pulsar Publicar. Se conservan hasta 20 comunicados recientes. Los borradores con fechas futuras no son públicos hasta su inicio.
+- La app existente recibe el último aviso activo mediante `announcement` en `/api/announcements`; consulta en Inicio, al volver al primer plano o cada 15 minutos durante el uso. El aviso se puede cerrar y no se repite con el mismo ID. Los avisos son independientes del interruptor IA. Retirar impide futuras entregas; un aviso ya visible puede requerir cerrarlo. Los enlaces se muestran como texto plano en la versión instalada. No hay notificaciones push con la app cerrada; eso requeriría actualizar la app.
+- Pruebas sin usuarios reales: `node tests/test-online-ai.mjs && node tests/test-notices.mjs` desde la raíz. El smoke test de producción no publica avisos.
+
 El servicio de Alftech Solutions se despliega en `https://asplayer-ai.alfrenix.workers.dev`, configurado de fábrica en ASPLAYER 5.9.21. La cuenta debe permanecer en **Workers Free**, sin actualizar a un plan de pago. La cuota compartida de Workers AI es de 10 000 neurons al día y se restablece a las 00:00 UTC. Si se agota, la app conserva la sinopsis original y la búsqueda convencional.
 
 ## Activación
