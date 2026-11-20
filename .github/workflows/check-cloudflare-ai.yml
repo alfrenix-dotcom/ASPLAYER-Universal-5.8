@@ -27,8 +27,7 @@ jobs:
             sleep 8
           done
           curl -fsS --max-time 15 "$worker/admin" | grep -F 'Centro de avisos'
-          curl -fsS --max-time 15 "$worker/api/announcements?lang=es" | jq -e 'has("announcement") and (.announcements | type == "array")'
-          status=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "$worker/api/admin/notices")
-          test "$status" = 401 || test "$status" = 503
+          curl -fsS --max-time 15 "$worker/api/announcements?lang=es" | jq -e 'has("announcement") and (.announcements | type == "array") and .storageReady == true'
+          curl -sS --max-time 15 "$worker/api/admin/notices" | jq -e '.error == "Administration not configured" or .error == "Unauthorized"'
           curl -fsS --max-time 90 "$worker/api/synopsis" -H 'Content-Type: application/json' --data '{"title":"Breaking Bad","category":"series","lang":"es","original":"A chemistry teacher becomes involved in the drug trade after a cancer diagnosis."}' | jq -e '.grounded == true and (.synopsis | type == "string" and length > 15)'
           curl -fsS --max-time 90 "$worker/api/synopsis" -H 'Content-Type: application/json' --data '{"title":"Breaking Bad","category":"series","year":"2008","lang":"es","generate":true}' | jq -e '.generated == true and .grounded == false and (.synopsis | type == "string" and length > 15)'

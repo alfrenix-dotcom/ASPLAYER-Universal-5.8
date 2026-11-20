@@ -59,7 +59,7 @@ export async function handleNotices(request,env,inference){
   const notices=activeNotices(rows,lang,Date.now());
   if(!rows.length){const message=clean(env['NOTICE_'+lang.toUpperCase()],400),id=clean(env.NOTICE_ID,100);if(id&&message)notices.push({id,message,active:true});}
   // Preserve the exact singular field consumed by ASPLAYER 5.9.25 and older clients.
-  return json({announcement:notices[0]||null,announcements:notices});
+  return json({announcement:notices[0]||null,announcements:notices,storageReady:!!env.NOTICES});
  }
  if(!path.startsWith('/api/admin/notices'))return err('Method not allowed',405);
  if(!env.NOTICES||!env.ADMIN_LIMIT||typeof env.NOTICE_ADMIN_TOKEN!=='string'||env.NOTICE_ADMIN_TOKEN.length<24)return err('Administration not configured',503);
