@@ -45,3 +45,58 @@ body[data-glass-effective] #glass-appearance{width:100%;margin-bottom:8px}
 }
 @media(max-height:500px) and (orientation:landscape){body:not(.asplayer-tv-dpad)[data-glass-effective] #tv-category-pane,body:not(.asplayer-tv-dpad)[data-glass-effective] #tv-content-pane{height:calc(100dvh - 112px - var(--glass-top) - var(--glass-bottom))}}
 @media(prefers-reduced-motion:no-preference){body[data-glass-effective] :is(.nav,.mobilebar button,.playerline button){transition:background-color .18s,border-color .18s,box-shadow .18s}}
+
+/* Adjustable optical depth. Keep text opaque, blur restricted to the few
+   floating controls, and the lightweight style inexpensive on Android TV. */
+body[data-glass-effective]{--glass-transparency:.7;--glass-panel-alpha:calc(1 - .23 * var(--glass-transparency));--glass-row-alpha:calc(1 - .14 * var(--glass-transparency));--glass-blur:calc(8px + 16px * var(--glass-transparency))}
+body[data-glass-effective=premium]{--glass-panel-alpha:calc(1 - .46 * var(--glass-transparency));--glass-row-alpha:calc(1 - .23 * var(--glass-transparency))}
+body[data-glass-effective]:not([data-glass-effective=off]){
+ --glass-surface:linear-gradient(125deg,rgba(103,164,201,calc(.06 + .16 * var(--glass-transparency))),transparent 45%,rgba(177,116,218,calc(.05 + .13 * var(--glass-transparency)))),linear-gradient(145deg,rgba(37,47,75,var(--glass-panel-alpha)),rgba(16,25,47,var(--glass-panel-alpha)) 58%,rgba(39,29,67,var(--glass-panel-alpha)));
+ --glass-highlight:inset 0 1px 0 #d7f0ff70,inset 0 -1px 0 #b3a3ff40,0 8px 22px #0205145c;
+}
+body[data-glass-effective]:not([data-glass-effective=off]) :is(.box,.quick button,.poster,.tile,.tab,.episode,.category-tools,#asplayer-593-options){background:linear-gradient(145deg,rgba(38,51,81,var(--glass-row-alpha)),rgba(16,26,48,var(--glass-row-alpha)) 65%,rgba(36,29,67,var(--glass-row-alpha)));border-color:#98c9ed50}
+body[data-glass-effective]:not([data-glass-effective=off]) .tab.active{background:linear-gradient(145deg,#237da0,#193b69);border-color:#6ee5e6}
+body[data-glass-effective=premium] :is(.sidebar,.topbar,.mobilebar,.dialog,.playerhead,.playercontrols,.glass-preview-surface){-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);backdrop-filter:blur(var(--glass-blur)) saturate(160%)}
+body[data-glass-effective=off] :is(.box,.quick button,.poster,.tile,.tab,.episode,.category-tools,#asplayer-593-options,.sidebar,.topbar,.mobilebar,.dialog,.playerhead,.playercontrols,.ghost,.primary,.danger,.close,.playerline button,.nav){background:#121e34;border-color:#465875;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+body[data-glass-effective=off] :is(.nav.active,.mobilebar button.active,.tab.active){background:#235b77;border-color:#6cb9cc}
+body[data-glass-effective=off] .primary{background:#196184;color:white}
+body[data-glass-effective]:not([data-glass-effective=off]) #cards .tile{background:linear-gradient(145deg,rgba(38,51,81,var(--glass-row-alpha)),rgba(16,26,48,var(--glass-row-alpha)) 65%,rgba(36,29,67,var(--glass-row-alpha)))}
+body[data-glass-effective=off] #cards .tile{background:#121e34}
+
+#glass-settings{min-width:0}
+.glass-slider-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.glass-slider-label label{margin:0;color:var(--txt);font-weight:650}
+#glass-transparency-value{font-variant-numeric:tabular-nums;color:#a5f3ea;font-weight:750}
+#glass-transparency{width:100%;min-height:44px;padding:0;accent-color:#73dfd5;cursor:pointer;background:transparent;border:0}
+#glass-transparency:disabled{opacity:.45;cursor:default}
+.glass-preview-stage{padding:10px;border-radius:20px;background:linear-gradient(110deg,#713859,#1c7793 48%,#8e4d95);margin:4px 0 12px;overflow:hidden}
+.glass-preview-surface{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:12px 15px;border:1px solid var(--glass-border);border-radius:16px;background:var(--glass-surface);box-shadow:var(--glass-highlight)}
+body[data-glass-effective=off] .glass-preview-surface{background:#121e34;box-shadow:none;border-color:#465875}
+#glass-reset{width:100%;margin:0 0 6px}
+
+/* Catalogs fill the actual available viewport. Header, menu and Android safe
+   areas participate in layout rather than being estimated with fixed pixels.
+   The category and results panels retain their own independent scrolling. */
+body.asplayer-catalog-open:not(.asplayer-tv-dpad) #app-shell{height:100vh;height:100dvh;min-height:0;overflow:hidden}
+body.asplayer-catalog-open:not(.asplayer-tv-dpad) #app-shell main{height:100%;min-height:0;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;padding-bottom:calc(8px + var(--glass-bottom))}
+body.asplayer-catalog-open:not(.asplayer-tv-dpad) #app-shell .topbar{flex:none;position:relative;margin-bottom:12px}
+body.asplayer-catalog-open:not(.asplayer-tv-dpad) #view-catalog{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+body.asplayer-catalog-open:not(.asplayer-tv-dpad) #tv-catalog-layout{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);align-items:stretch}
+body.asplayer-catalog-open:not(.asplayer-tv-dpad) #tv-category-pane,
+body.asplayer-catalog-open:not(.asplayer-tv-dpad) #tv-content-pane{height:100%;min-height:0;max-height:none}
+html.android-keyboard body.asplayer-catalog-open:not(.asplayer-tv-dpad) #tv-category-pane,
+html.android-keyboard body.asplayer-catalog-open:not(.asplayer-tv-dpad) #tv-content-pane{height:100%;min-height:0;max-height:none}
+@media(max-width:640px){
+ body.asplayer-catalog-open:not(.asplayer-tv-dpad) #app-shell{flex-direction:column}
+ body.asplayer-catalog-open:not(.asplayer-tv-dpad) #app-shell main{flex:1 1 auto;width:100%;height:auto;padding-bottom:8px}
+ body.asplayer-catalog-open:not(.asplayer-tv-dpad) #app-shell .mobilebar{position:relative;flex:0 0 auto;left:auto;right:auto;bottom:auto;margin:0 9px calc(8px + var(--glass-bottom))}
+ html.android-keyboard body.asplayer-catalog-open:not(.asplayer-tv-dpad) #app-shell main{padding-bottom:4px}
+}
+/* Existing TV layout stays full-height; reserve room for focus outlines. */
+body.asplayer-tv-dpad.asplayer-catalog-open #tv-content-pane{padding-bottom:12px}
+body.asplayer-tv-dpad.asplayer-catalog-open #tv-catalog-layout{min-width:0}
+body.asplayer-tv-dpad.asplayer-catalog-open #tv-category-pane{overflow:hidden}
+body.asplayer-tv-dpad.asplayer-catalog-open #tv-category-pane,
+body.asplayer-tv-dpad.asplayer-catalog-open #tv-content-pane{height:100%;min-height:0;max-height:none}
+#view-settings .settings-grid .settings-priority{min-width:0}
+@media(min-width:641px){#view-settings .settings-grid .settings-account{grid-column:1/-1}}

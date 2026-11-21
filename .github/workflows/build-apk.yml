@@ -2,7 +2,7 @@ name: ASPLAYER Universal — Build and Validate
 on:
   workflow_dispatch:
   push:
-    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass, development/5.9.20-details-recents, development/5.9.21-cloudflare-ai, development/5.9.26-cold-start-notices]
+    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass, development/5.9.20-details-recents, development/5.9.21-cloudflare-ai, development/5.9.26-cold-start-notices, development/5.9.27-layout-glass]
     paths:
       - 'app/**'
       - 'tests/**'
@@ -75,6 +75,7 @@ jobs:
           node tests/test-tv-modal.cjs
           node tests/test-catalog-pager.cjs
           node tests/test-liquid-glass.cjs
+          node tests/test-catalog-layout.cjs
           node tests/test-details-recents.cjs
           node tests/test-online-ai.mjs
           node tests/test-ai-ui.cjs
@@ -98,7 +99,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-${{ steps.version.outputs.name }}-UNIVERSAL-AUTO-PAGINATION-DEBUG-NOT-PLAY-UPDATE
+          name: ASPLAYER-${{ steps.version.outputs.name }}-UNIVERSAL-DEBUG-NOT-PLAY-UPDATE
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
           if-no-files-found: error

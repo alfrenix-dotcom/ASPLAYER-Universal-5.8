@@ -107,7 +107,7 @@
  select.value=['hls','mpegts'].includes(settings.liveFormat)?settings.liveFormat:'default';
  select.addEventListener('change',()=>{settings.liveFormat=select.value;saveSettings();});
  setting?.append(label,select,hint);
- const updateBox=document.createElement('section');updateBox.className='box setting';
+ const updateBox=document.createElement('section');updateBox.className='box setting';updateBox.id='play-update-settings';
  const updateTitle=document.createElement('h3'),updateText=document.createElement('p'),check=document.createElement('button'),storeButton=document.createElement('button');
  check.type=storeButton.type='button';check.className='ghost';storeButton.className='primary';
  updateBox.append(updateTitle,updateText,check,storeButton);G('view-settings').querySelector('.settings-grid').prepend(updateBox);

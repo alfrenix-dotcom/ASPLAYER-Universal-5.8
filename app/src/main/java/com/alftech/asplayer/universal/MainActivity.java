@@ -69,6 +69,7 @@ public final class MainActivity extends Activity {
     private int safeTop, safeBottom;
     private boolean keyboardOpen;
     private String glassMode = "adaptive";
+    private int glassTransparency = 70;
     private FrameLayout root;
     private WebView web;
     private VLCVideoLayout video;
@@ -166,6 +167,7 @@ public final class MainActivity extends Activity {
         root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[]{0xFF201438,0xFF0C2948,0xFF060916}));
         glassMode=getSharedPreferences("asplayer_appearance",MODE_PRIVATE).getString("glass","adaptive");
+        glassTransparency=Math.max(0,Math.min(100,getSharedPreferences("asplayer_appearance",MODE_PRIVATE).getInt("transparency",70)));
         applySystemBars(false);
         web = new WebView(this);
         web.setBackgroundColor(Color.rgb(8,15,34));
@@ -354,12 +356,17 @@ public final class MainActivity extends Activity {
         return android.os.Build.VERSION.SDK_INT>=31 && !isTvDevice()
                 && manager!=null && !manager.isLowRamDevice() && (power==null||!power.isPowerSaveMode());
     }
+    private int glassColor(int color,int maxReduction){
+        int alpha=255-Math.round(maxReduction*glassTransparency/100f);
+        return (color&0x00FFFFFF)|(alpha<<24);
+    }
     private GradientDrawable playerGlassPanel(){
+        boolean off="off".equals(glassMode);
         boolean simple="light".equals(glassMode)||( "adaptive".equals(glassMode)&&!canUsePremiumGlass());
         GradientDrawable panel=new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                simple?new int[]{0xF01A203B,0xEE0B192B}:new int[]{0xDB30395E,0xD90B1428,0xDF262044});
+                off?new int[]{0xFF121E34,0xFF121E34}:simple?new int[]{glassColor(0x1A203B,38),glassColor(0x0B192B,38)}:new int[]{glassColor(0x30395E,91),glassColor(0x0B1428,83),glassColor(0x262044,91)});
         panel.setCornerRadius(dp(24));
-        panel.setStroke(dp(1),simple?0xFF52647B:0xA9A4DDF6);
+        panel.setStroke(dp(1),off||simple?0xFF52647B:0xA9A4DDF6);
         return panel;
     }
     private Button button(String title, Runnable callback) {
@@ -381,10 +388,11 @@ public final class MainActivity extends Activity {
         return b;
     }
     private GradientDrawable controlBackground(boolean focused) {
+        boolean off="off".equals(glassMode);
         boolean simple="light".equals(glassMode)||("adaptive".equals(glassMode)&&!canUsePremiumGlass());
         GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                focused?new int[]{0xFF2187AE,0xFF193A68}:simple?new int[]{0xE82B3652,0xE8162339}
-                        :new int[]{0xB37088B1,0xCC28334E,0xC0483269});
+                focused?new int[]{0xFF2187AE,0xFF193A68}:off?new int[]{0xFF1D2B45,0xFF1D2B45}:simple?new int[]{glassColor(0x2B3652,32),glassColor(0x162339,32)}
+                        :new int[]{glassColor(0x7088B1,104),glassColor(0x28334E,76),glassColor(0x483269,92)});
         bg.setCornerRadius(dp(14));
         bg.setStroke(dp(focused?3:1),focused?0xFFFFDF79:0x996EACCC);
         return bg;
@@ -1093,7 +1101,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.26"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.27"; }
         @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
             runOnUiThread(()->{
                 AnnouncementJobService.configure(MainActivity.this,enabled,language);
@@ -1107,8 +1115,19 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public boolean supportsPremiumGlass(){return canUsePremiumGlass();}
         @JavascriptInterface public void setGlassAppearance(String mode){
             runOnUiThread(()->{
-                glassMode="premium".equals(mode)||"light".equals(mode)?mode:"adaptive";
+                glassMode="premium".equals(mode)||"light".equals(mode)||"off".equals(mode)?mode:"adaptive";
                 getSharedPreferences("asplayer_appearance",MODE_PRIVATE).edit().putString("glass",glassMode).apply();
+                if(controls!=null){
+                    controls.setBackground(playerGlassPanel());
+                    for(List<View> row:navigationRows)for(View view:row)
+                        if(view instanceof Button)view.setBackground(controlBackground(view.hasFocus()));
+                }
+            });
+        }
+        @JavascriptInterface public void setGlassTransparency(int value){
+            runOnUiThread(()->{
+                glassTransparency=Math.max(0,Math.min(100,value));
+                getSharedPreferences("asplayer_appearance",MODE_PRIVATE).edit().putInt("transparency",glassTransparency).apply();
                 if(controls!=null){
                     controls.setBackground(playerGlassPanel());
                     for(List<View> row:navigationRows)for(View view:row)
