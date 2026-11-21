@@ -69,7 +69,7 @@ public final class MainActivity extends Activity {
     private int safeTop, safeBottom;
     private boolean keyboardOpen;
     private String glassMode = "adaptive";
-    private int glassTransparency = 70;
+    private int glassTransparency = 50;
     private FrameLayout root;
     private WebView web;
     private VLCVideoLayout video;
@@ -167,7 +167,7 @@ public final class MainActivity extends Activity {
         root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[]{0xFF201438,0xFF0C2948,0xFF060916}));
         glassMode=getSharedPreferences("asplayer_appearance",MODE_PRIVATE).getString("glass","adaptive");
-        glassTransparency=Math.max(0,Math.min(100,getSharedPreferences("asplayer_appearance",MODE_PRIVATE).getInt("transparency",70)));
+        glassTransparency=Math.max(0,Math.min(100,getSharedPreferences("asplayer_appearance",MODE_PRIVATE).getInt("transparency_v2",50)));
         applySystemBars(false);
         web = new WebView(this);
         web.setBackgroundColor(Color.rgb(8,15,34));
@@ -357,7 +357,11 @@ public final class MainActivity extends Activity {
                 && manager!=null && !manager.isLowRamDevice() && (power==null||!power.isPowerSaveMode());
     }
     private int glassColor(int color,int maxReduction){
-        int alpha=255-Math.round(maxReduction*glassTransparency/100f);
+        // 50% equals the previous maximum; above it, lower opacity further,
+        // leaving a dark scrim for legibility over bright video.
+        float legacy=Math.min(1f,glassTransparency/50f);
+        float beyond=Math.max(0f,(glassTransparency-50)/50f);
+        int alpha=255-Math.round(maxReduction*legacy+Math.min(maxReduction,70)*beyond);
         return (color&0x00FFFFFF)|(alpha<<24);
     }
     private GradientDrawable playerGlassPanel(){
@@ -1101,7 +1105,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.27"; }
+        @JavascriptInterface public String getAppVersion() { return "5.9.28"; }
         @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
             runOnUiThread(()->{
                 AnnouncementJobService.configure(MainActivity.this,enabled,language);
@@ -1127,7 +1131,7 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void setGlassTransparency(int value){
             runOnUiThread(()->{
                 glassTransparency=Math.max(0,Math.min(100,value));
-                getSharedPreferences("asplayer_appearance",MODE_PRIVATE).edit().putInt("transparency",glassTransparency).apply();
+                getSharedPreferences("asplayer_appearance",MODE_PRIVATE).edit().putInt("transparency_v2",glassTransparency).apply();
                 if(controls!=null){
                     controls.setBackground(playerGlassPanel());
                     for(List<View> row:navigationRows)for(View view:row)

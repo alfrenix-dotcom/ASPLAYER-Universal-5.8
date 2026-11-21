@@ -2,7 +2,7 @@ name: ASPLAYER Universal — Build and Validate
 on:
   workflow_dispatch:
   push:
-    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass, development/5.9.20-details-recents, development/5.9.21-cloudflare-ai, development/5.9.26-cold-start-notices, development/5.9.27-layout-glass]
+    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass, development/5.9.20-details-recents, development/5.9.21-cloudflare-ai, development/5.9.26-cold-start-notices, development/5.9.27-layout-glass, development/5.9.28-glass-depth]
     paths:
       - 'app/**'
       - 'tests/**'
@@ -78,6 +78,7 @@ jobs:
           node tests/test-catalog-layout.cjs
           node tests/test-details-recents.cjs
           node tests/test-online-ai.mjs
+          node tests/test-notices.mjs
           node tests/test-ai-ui.cjs
           node tests/test-picture-mode.cjs
       - name: Build debug APK (not Play-install compatible)

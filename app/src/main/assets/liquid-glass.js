@@ -3,11 +3,13 @@
   'use strict';
   const key='asplayer:appearance:glass:v1';
   const bridge=window.ASPLAYER||{};
-  const transparencyKey='asplayer:appearance:glass-transparency:v1';
+  // Scale v2: the former 100% is now 50%. Start the expanded scale at 50%
+  // even after upgrading; preserve the selected glass mode and other settings.
+  const transparencyKey='asplayer:appearance:glass-transparency:v2';
   const modes=['adaptive','premium','light','off'];
   const css=document.createElement('link');css.rel='stylesheet';css.href='liquid-glass.css';document.head.appendChild(css);
   const translate=(es,en)=>document.documentElement.lang==='es'?es:en;
-  let mode='adaptive',transparency=70;
+  let mode='adaptive',transparency=50;
   try{
     const saved=localStorage.getItem(key);
     if(modes.includes(saved))mode=saved;
@@ -39,7 +41,10 @@
     box.querySelector('#glass-description').textContent=mode==='off'?translate('Efectos de cristal desactivados. Interfaz sólida y sin desenfoque.','Glass effects off. Solid interface without blur.'):premium?translate('Cristal con desenfoque y reflejos. El ajuste cambia las superficies, no el vídeo.','Glass with blur and highlights. Changes surfaces, not video.'):translate('Cristal ligero sin desenfoque intensivo, ideal para Android TV. El vídeo no cambia.','Light glass without expensive blur, ideal for Android TV. Video is unchanged.');
   }
   function applyTransparency(){
-    document.body.style.setProperty('--glass-transparency',String(transparency/100));
+    const amount=transparency/100;
+    document.body.style.setProperty('--glass-transparency',String(amount));
+    document.body.style.setProperty('--glass-legacy',String(Math.min(1,2*amount)));
+    document.body.style.setProperty('--glass-beyond',String(Math.max(0,2*amount-1)));
     slider.value=String(transparency);
     slider.disabled=mode==='off';
     box.querySelector('#glass-transparency-value').textContent=transparency+'%';
@@ -66,7 +71,7 @@
   select.addEventListener('change',()=>{mode=modes.includes(select.value)?select.value:'adaptive';persist();apply();});
   slider.addEventListener('input',()=>{transparency=Math.max(0,Math.min(100,Number(slider.value)));applyTransparency();persist();});
   slider.addEventListener('change',syncNative);
-  box.querySelector('#glass-reset').addEventListener('click',()=>{mode='adaptive';transparency=70;persist();apply();});
+  box.querySelector('#glass-reset').addEventListener('click',()=>{mode='adaptive';transparency=50;persist();apply();});
   const previousLanguage=languageUI;languageUI=function(){previousLanguage.apply(this,arguments);localize();};
   let wasRemote=document.body.classList.contains('asplayer-tv-dpad');
   new MutationObserver(()=>{const remote=document.body.classList.contains('asplayer-tv-dpad');if(remote!==wasRemote){wasRemote=remote;apply();}}).observe(document.body,{attributes:true,attributeFilter:['class']});

@@ -48,15 +48,18 @@ body[data-glass-effective] #glass-appearance{width:100%;margin-bottom:8px}
 
 /* Adjustable optical depth. Keep text opaque, blur restricted to the few
    floating controls, and the lightweight style inexpensive on Android TV. */
-body[data-glass-effective]{--glass-transparency:.7;--glass-panel-alpha:calc(1 - .23 * var(--glass-transparency));--glass-row-alpha:calc(1 - .14 * var(--glass-transparency));--glass-blur:calc(8px + 16px * var(--glass-transparency))}
-body[data-glass-effective=premium]{--glass-panel-alpha:calc(1 - .46 * var(--glass-transparency));--glass-row-alpha:calc(1 - .23 * var(--glass-transparency))}
+/* 0–50% reproduces the original scale; 50–100% progressively reveals the
+   backdrop. Keep ordinary catalog rows and lightweight TVs less translucent. */
+body[data-glass-effective]{--glass-transparency:.5;--glass-legacy:1;--glass-beyond:0;--glass-panel-alpha:calc(1 - .23 * var(--glass-legacy) - .32 * var(--glass-beyond));--glass-row-alpha:calc(1 - .14 * var(--glass-legacy) - .19 * var(--glass-beyond));--glass-blur:calc(8px + 16px * var(--glass-legacy) - 10px * var(--glass-beyond))}
+body[data-glass-effective=premium]{--glass-panel-alpha:calc(1 - .46 * var(--glass-legacy) - .42 * var(--glass-beyond));--glass-row-alpha:calc(1 - .23 * var(--glass-legacy) - .22 * var(--glass-beyond))}
 body[data-glass-effective]:not([data-glass-effective=off]){
- --glass-surface:linear-gradient(125deg,rgba(103,164,201,calc(.06 + .16 * var(--glass-transparency))),transparent 45%,rgba(177,116,218,calc(.05 + .13 * var(--glass-transparency)))),linear-gradient(145deg,rgba(37,47,75,var(--glass-panel-alpha)),rgba(16,25,47,var(--glass-panel-alpha)) 58%,rgba(39,29,67,var(--glass-panel-alpha)));
- --glass-highlight:inset 0 1px 0 #d7f0ff70,inset 0 -1px 0 #b3a3ff40,0 8px 22px #0205145c;
+ --glass-surface:linear-gradient(125deg,rgba(103,164,201,calc(.06 + .16 * var(--glass-legacy) - .14 * var(--glass-beyond))),transparent 45%,rgba(177,116,218,calc(.05 + .13 * var(--glass-legacy) - .115 * var(--glass-beyond)))),linear-gradient(145deg,rgba(37,47,75,var(--glass-panel-alpha)),rgba(16,25,47,var(--glass-panel-alpha)) 58%,rgba(39,29,67,var(--glass-panel-alpha)));
+ --glass-highlight:inset 0 1px 0 rgba(215,240,255,calc(.44 + .23 * var(--glass-beyond))),inset 0 -1px 0 rgba(179,163,255,calc(.25 + .15 * var(--glass-beyond))),0 8px 22px #0205145c;
 }
 body[data-glass-effective]:not([data-glass-effective=off]) :is(.box,.quick button,.poster,.tile,.tab,.episode,.category-tools,#asplayer-593-options){background:linear-gradient(145deg,rgba(38,51,81,var(--glass-row-alpha)),rgba(16,26,48,var(--glass-row-alpha)) 65%,rgba(36,29,67,var(--glass-row-alpha)));border-color:#98c9ed50}
 body[data-glass-effective]:not([data-glass-effective=off]) .tab.active{background:linear-gradient(145deg,#237da0,#193b69);border-color:#6ee5e6}
-body[data-glass-effective=premium] :is(.sidebar,.topbar,.mobilebar,.dialog,.playerhead,.playercontrols,.glass-preview-surface){-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);backdrop-filter:blur(var(--glass-blur)) saturate(160%)}
+body[data-glass-effective=premium] :is(.sidebar,.topbar,.mobilebar,.dialog,.playerhead,.playercontrols,.glass-preview-surface){-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(calc(160% + 20% * var(--glass-beyond)));backdrop-filter:blur(var(--glass-blur)) saturate(calc(160% + 20% * var(--glass-beyond)));text-shadow:0 1px 4px #020514c0}
+body[data-glass-effective=premium] :is(.nav.active,.mobilebar button.active){background:linear-gradient(145deg,rgba(142,217,250,calc(.27 - .10 * var(--glass-beyond))),rgba(40,103,165,calc(.42 - .18 * var(--glass-beyond))) 65%,rgba(136,117,196,calc(.30 - .12 * var(--glass-beyond))));color:white}
 body[data-glass-effective=off] :is(.box,.quick button,.poster,.tile,.tab,.episode,.category-tools,#asplayer-593-options,.sidebar,.topbar,.mobilebar,.dialog,.playerhead,.playercontrols,.ghost,.primary,.danger,.close,.playerline button,.nav){background:#121e34;border-color:#465875;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 body[data-glass-effective=off] :is(.nav.active,.mobilebar button.active,.tab.active){background:#235b77;border-color:#6cb9cc}
 body[data-glass-effective=off] .primary{background:#196184;color:white}
@@ -69,7 +72,7 @@ body[data-glass-effective=off] #cards .tile{background:#121e34}
 #glass-transparency-value{font-variant-numeric:tabular-nums;color:#a5f3ea;font-weight:750}
 #glass-transparency{width:100%;min-height:44px;padding:0;accent-color:#73dfd5;cursor:pointer;background:transparent;border:0}
 #glass-transparency:disabled{opacity:.45;cursor:default}
-.glass-preview-stage{padding:10px;border-radius:20px;background:linear-gradient(110deg,#713859,#1c7793 48%,#8e4d95);margin:4px 0 12px;overflow:hidden}
+.glass-preview-stage{padding:10px;border-radius:20px;background:radial-gradient(ellipse at 18% 30%,#e55c95 0 12%,transparent 35%),radial-gradient(ellipse at 78% 75%,#65e9b1 0 8%,transparent 32%),linear-gradient(110deg,#713859,#1c7793 48%,#8e4d95);margin:4px 0 12px;overflow:hidden}
 .glass-preview-surface{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:12px 15px;border:1px solid var(--glass-border);border-radius:16px;background:var(--glass-surface);box-shadow:var(--glass-highlight)}
 body[data-glass-effective=off] .glass-preview-surface{background:#121e34;box-shadow:none;border-color:#465875}
 #glass-reset{width:100%;margin:0 0 6px}
