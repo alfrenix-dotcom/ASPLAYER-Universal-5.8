@@ -38,9 +38,13 @@ asplayer6Style.textContent=`
  body[data-glass-effective=off] #most-watched-channels .most-watched-channel{background:#121e34;border-color:#465875;box-shadow:none}
  body[data-glass-effective=off] #most-watched-channels .channel-logo-frame{background:#1a2841}
  #most-watched-channels .most-watched-channel:focus-visible{border-color:#8df5ef;box-shadow:0 0 0 3px #58dedc,0 0 18px #43dcff55;outline:none}
- body.asplayer-tv-dpad #view-settings .settings-grid{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:16px;width:100%;max-width:none}
- body.asplayer-tv-dpad #view-settings .settings-grid>.setting{grid-column:1/-1!important;width:100%;min-width:0;scroll-margin:24px}
- body.asplayer-tv-dpad #view-settings{width:100%;max-width:none}
+ #view-settings .settings-grid{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:16px;width:100%;max-width:none}
+ #view-settings .settings-grid>.setting{grid-column:1/-1!important;width:100%;min-width:0;scroll-margin:24px}
+ #view-settings{width:100%;max-width:none}
+ #view-settings .setting .actions{justify-content:flex-start;align-items:center}
+ #view-settings .setting .actions>button{flex:0 1 auto;width:auto;max-width:100%}
+ #view-settings .setting :is(select,input:not([type=checkbox]):not([type=radio]),.glass-slider-label,.glass-preview-stage){max-width:36rem}
+ #view-settings .setting :is(select,input:not([type=checkbox]):not([type=radio])){display:block}
  body.asplayer-tv-dpad.asplayer-settings-open #app-shell{height:100dvh;min-height:0;overflow:hidden}
  body.asplayer-tv-dpad.asplayer-settings-open #app-shell main{height:100%;min-height:0;max-width:none;margin:0;overflow-y:auto;overflow-x:hidden;scroll-padding:20px}
  body.asplayer-tv-dpad #view-settings button,body.asplayer-tv-dpad #view-settings select{min-height:52px}

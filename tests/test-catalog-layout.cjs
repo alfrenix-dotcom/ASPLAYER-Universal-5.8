@@ -54,11 +54,15 @@ const path=require('node:path');
       assert.equal(await page.evaluate(()=>document.querySelector('#view-settings .settings-grid').children[1].contains(document.querySelector('#parent-toggle'))),true);
       assert.equal(await page.evaluate(()=>document.querySelector('#view-settings .settings-grid').children[2].contains(document.querySelector('#language'))),true);
       assert.equal(order[3],'glass-settings');
-      if(tv){
-        await page.evaluate(()=>{document.querySelector('#view-catalog').classList.add('hidden');document.querySelector('#view-settings').classList.remove('hidden');active='settings';document.body.classList.remove('asplayer-catalog-open')});
-        const columns=await page.locator('#view-settings .settings-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
-        assert.equal(columns,1,'TV settings must use a single column');
-      }
+      await page.evaluate(()=>{document.querySelector('#view-catalog').classList.add('hidden');document.querySelector('#view-settings').classList.remove('hidden');active='settings';window.ASPLAYER_REFRESH_WATCH()});
+      const settingsLayout=await page.locator('#view-settings .settings-grid').evaluate(el=>{
+        const cards=[...el.children].filter(c=>c.getBoundingClientRect().height>0),bounds=el.getBoundingClientRect();
+        const button=el.querySelector('#settings-connect').getBoundingClientRect();
+        return {columns:getComputedStyle(el).gridTemplateColumns.split(' ').length,aligned:cards.every((c,i)=>{const r=c.getBoundingClientRect();return Math.abs(r.left-bounds.left)<2&&Math.abs(r.width-bounds.width)<2&&(!i||r.top>=cards[i-1].getBoundingClientRect().bottom-1)}),buttonWidth:button.width,gridWidth:bounds.width};
+      });
+      assert.equal(settingsLayout.columns,1,`${width}x${height} settings must use a single column`);
+      assert(settingsLayout.aligned,`${width}x${height} settings cards must span the available width`);
+      if(width>640)assert(settingsLayout.buttonWidth<settingsLayout.gridWidth*.7,'Server button must keep its natural width');
       assert.deepEqual(errors,[]);
       await page.close();
     }
