@@ -48,7 +48,8 @@
       s.loaded = Math.min(s.rows.length, s.loaded + PAGE);
     const start = Math.max(0, Math.floor((index + AHEAD) / PAGE) - 1) * PAGE;
     const end = Math.min(s.loaded, start + MAX_ROWS);
-    if (!refresh && s.start === start && s.end === end) return;
+    const rowStride = stride(s);
+    if (!refresh && s.start === start && s.end === end && s.rowStride === rowStride) return;
     const focused = document.activeElement;
     const focusIndex = indexOf(focused);
     const focusStar = focused?.matches('.fav-star');
@@ -74,8 +75,9 @@
       }
       next = entry.node;
     }
-    s.top.style.height = start * stride(s) + 'px';
-    s.bottom.style.height = (s.loaded - end) * stride(s) + 'px';
+    s.top.style.height = start * rowStride + 'px';
+    s.bottom.style.height = (s.loaded - end) * rowStride + 'px';
+    s.rowStride = rowStride;
     s.start = start;
     s.end = end;
     const progress = document.getElementById('catalog-page-progress');
@@ -95,12 +97,31 @@
   function tile(node) {
     return node?.matches('button[data-item]') ? node : node?.querySelector('button[data-item]');
   }
+  function syncDensity(s) {
+    const old = s.rowStride, next = stride(s);
+    if (!old || old === next) return;
+    const relative = s.pane.scrollTop - listOffset(s);
+    const anchor = Math.max(0, relative / old);
+    const focused = document.activeElement;
+    const focusIndex = s.holder.contains(focused) ? indexOf(focused) : -1;
+    renderWindow(s, focusIndex >= 0 ? focusIndex : Math.floor(anchor));
+    if (relative > 0) s.pane.scrollTop = listOffset(s) + anchor * next;
+    if (focusIndex >= 0 && focused.isConnected) {
+      const item = focused.getBoundingClientRect(), pane = s.pane.getBoundingClientRect();
+      if (item.top < pane.top) s.pane.scrollTop += item.top - pane.top;
+      else if (item.bottom > pane.bottom) s.pane.scrollTop += item.bottom - pane.bottom;
+    }
+  }
+  window.addEventListener('resize', () => {
+    if (current() && state.rows.length) syncDensity(state);
+  });
   function onScroll() {
     if (frame) return;
     frame = requestAnimationFrame(() => {
       frame = 0;
       if (!current() || !state.rows.length) return;
       const s = state;
+      syncDensity(s);
       const first = viewportIndex(s);
       const last = first + Math.ceil(s.pane.clientHeight / stride(s));
       // Use the viewport's end to prefetch the next block, but do not retain
@@ -161,6 +182,7 @@
   function at(index, star = false) {
     if (!current() || index < 0 || index >= state.rows.length) return null;
     const s = state;
+    syncDensity(s);
     // DPAD movement crosses the window synchronously, preserving logical index.
     if (index >= s.loaded) s.loaded = Math.min(s.rows.length, Math.ceil((index + 1) / PAGE) * PAGE);
     renderWindow(s, index);

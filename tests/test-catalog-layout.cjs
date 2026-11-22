@@ -6,7 +6,7 @@ const path=require('node:path');
 (async()=>{
   const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{channel:'chrome'}),headless:true});
   try{
-    for(const [width,height,tv] of [[390,844,false],[360,640,false],[844,390,false],[1280,720,true],[1920,1080,true]]){
+    for(const [width,height,tv] of [[390,844,false],[360,640,false],[844,390,false],[1024,768,false],[1280,720,true],[1536,864,true],[1920,1080,true]]){
       const page=await browser.newPage({viewport:{width,height},hasTouch:!tv});
       const errors=[];page.on('pageerror',e=>errors.push(e.message));
       await page.addInitScript(tv=>{window.ASPLAYER={isAndroidTv:()=>tv,supportsPremiumGlass:()=>!tv};},tv);
@@ -26,6 +26,7 @@ const path=require('node:path');
           catalog=Array.from({length:350},(_,i)=>({stream_id:'s'+i,series_id:'s'+i,category_id:'one',name:'Title '+i}));
           filtered=catalog;renderCats();window.ASPLAYER_REFRESH_WATCH();renderItems();
           document.querySelector('#tv-content-pane').scrollTop=0;
+          document.querySelector('#categories').scrollTop=0;
         },section);
         const m=await page.evaluate(()=>{
           const r=s=>document.querySelector(s).getBoundingClientRect();
@@ -34,6 +35,11 @@ const path=require('node:path');
           const end=barVisible?r('#mobilebar').top:innerHeight;
           const gap=end-r('#tv-content-pane').bottom;
           const layout={gap,barVisible,catBottom:r('#tv-category-pane').bottom,contentBottom:r('#tv-content-pane').bottom,paneTop:r('#tv-content-pane').top,headerBottom:r('.topbar').bottom,scrollWidth:document.documentElement.scrollWidth,scrollY:window.scrollY};
+          const visible=(parent,selector)=>[...parent.querySelectorAll(selector)].filter(el=>{const a=el.getBoundingClientRect(),b=parent.getBoundingClientRect();return a.height>0&&a.top>=b.top-1&&a.bottom<=b.bottom+1}).length;
+          layout.visibleRows=visible(pane,'.asplayer-page-row');layout.visibleCategories=visible(cat,'button[data-category]');
+          layout.stride=parseFloat(getComputedStyle(document.querySelector('#cards')).getPropertyValue('--pager-stride'));
+          layout.titleSize=parseFloat(getComputedStyle(document.querySelector('#cards .caption strong')).fontSize);
+          layout.categoryHeight=cat.querySelector('button[data-category]').getBoundingClientRect().height;
           pane.scrollTop=200;cat.scrollTop=200;layout.contentScroll=pane.scrollTop;layout.categoryScroll=cat.scrollTop;
           return layout;
         });
@@ -43,6 +49,11 @@ const path=require('node:path');
         assert(m.paneTop>=m.headerBottom-1,label);
         assert(m.scrollWidth<=width+1&&m.scrollY===0,label);
         assert(m.contentScroll>0&&m.categoryScroll>0,label);
+        assert(m.stride<=82&&m.titleSize>=14&&m.categoryHeight>=44,label);
+        const minRows=height>=1000?9:height>=850?7:width>=1000?6:height<=500?3:4;
+        assert(m.visibleRows>=minRows,label);
+        if(width>=1000)assert(m.visibleCategories>=Math.floor((height-170)/55),label);
+        console.log(label);
         if(tv){
           await page.locator('#cards [data-item]').first().focus();
           await page.keyboard.press('ArrowDown');

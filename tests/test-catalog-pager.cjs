@@ -44,6 +44,14 @@ const path = require('node:path');
     }
     await tv.keyboard.press('Enter');
     assert.deepEqual(await tv.evaluate(()=>window.picked),['id260']);
+    await tv.setViewportSize({width:1920,height:1080});
+    await tv.waitForFunction(()=>{
+      const holder=document.querySelector('#cards'),row=holder.querySelector('[data-pager-index]');
+      const stride=parseFloat(getComputedStyle(holder).getPropertyValue('--pager-stride'));
+      return stride===82&&parseFloat(holder.firstElementChild.style.height)===Number(row.dataset.pagerIndex)*stride;
+    });
+    assert.equal(await focusIndex(),260,'Focus survives a density change');
+    assert(await tv.evaluate(()=>{const a=document.activeElement.getBoundingClientRect(),b=document.querySelector('#tv-content-pane').getBoundingClientRect();return a.top>=b.top-1&&a.bottom<=b.bottom+1}),'Focused card remains visible');
     for(let i=259;i>=40;i--){
       await tv.keyboard.press('ArrowUp');
       assert.equal(await focusIndex(),i,'DPAD up index '+i);

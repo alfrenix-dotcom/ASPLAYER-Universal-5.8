@@ -1191,7 +1191,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "6.0.1"; }
+        @JavascriptInterface public String getAppVersion() { return "6.0.2"; }
         @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
             runOnUiThread(()->{
                 AnnouncementJobService.configure(MainActivity.this,enabled,language);
