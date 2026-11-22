@@ -91,6 +91,9 @@ asplayer6Style.textContent=`
   body.asplayer-catalog-open #app-shell .sidebar .navico{margin:0;font-size:21px}
   body.asplayer-catalog-open #app-shell .sidebar .navlabel{display:block;font-size:10px;line-height:1.1;white-space:normal}
   body.asplayer-catalog-open #tv-catalog-layout{grid-template-columns:minmax(162px,25%) minmax(0,1fr);gap:10px}
+  body.asplayer-catalog-open #tv-content-pane .catalogtools{flex-wrap:nowrap;gap:8px}
+  body.asplayer-catalog-open #tv-content-pane #search{flex:1 1 0;width:auto;min-width:0}
+  body.asplayer-catalog-open #tv-content-pane #count{flex:none;white-space:nowrap;font-size:12px}
   body.asplayer-catalog-open #categories button{font-size:15px}
   body.asplayer-catalog-open #category-tools{font-size:13px}
   body.asplayer-catalog-open #cards.asplayer-paged{--pager-stride:74px;--pager-gap:5px}
