@@ -127,7 +127,7 @@ async function fetchLatestSeries(force=false){
    items=items.filter(x=>!restricted.has(String(x.category_id)));
   }
   // If the server lacks addition times, use release year and stable original order.
-  latestSeries=items.slice().sort((a,b)=>seriesDate(b)-seriesDate(a)).slice(0,14);
+  latestSeries=items.slice().sort((a,b)=>seriesDate(b)-seriesDate(a)).slice(0,20);
   paintSeries();
  }catch(_){if(current()){latestSeries=[];paintSeries()}}
 }

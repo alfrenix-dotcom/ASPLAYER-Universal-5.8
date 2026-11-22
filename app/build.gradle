@@ -6,8 +6,8 @@ android {
         applicationId 'com.alftech.asplayer.universal.vlc.final.v592'
         minSdk 21
         targetSdk 36
-        versionCode 5929
-        versionName '5.9.28'
+        versionCode 6000
+        versionName '6.0.0'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
@@ -15,4 +15,8 @@ dependencies {
     // LibVLC stable line; this library includes native codecs and ABIs.
     implementation 'org.videolan.android:libvlc-all:3.7.7'
     implementation 'com.google.android.play:app-update:2.1.0'
+    // Secondary VOD engine; keep the same minSdk as the stable VLC build.
+    implementation 'androidx.media3:media3-exoplayer:1.5.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.5.1'
+    implementation 'androidx.media3:media3-ui:1.5.1'
 }

@@ -101,7 +101,7 @@ function lockBackground(scope){
 }
 function preferred(scope){
   if(scope.id==='details-modal')
-    return scope.querySelector('#detail-actions button:not(:disabled),#episodes button[data-episode]:not(:disabled)')||scope.querySelector('#detail-close');
+    return scope.querySelector('#season-select,#detail-actions button:not(:disabled),#episodes button[data-episode]:not(:disabled)')||scope.querySelector('#detail-close');
   if(scope.id==='parent-modal')return scope.querySelector('#unlock-pin');
   if(scope.id==='player-choice')return scope.querySelector('#choose-modern');
   if(scope.id==='modern-player')return scope.querySelector('#player-toggle');
@@ -139,7 +139,7 @@ function syncScope(){
   if(modal){
     // Series episodes arrive asynchronously; select first episode on arrival
     // only if the viewer hasn't deliberately moved or activated a control.
-    const ready=modal.querySelector('#episodes button[data-episode]');
+    const ready=modal.querySelector('#season-select,#episodes button[data-episode]');
     if(waitingEpisode&&ready){waitingEpisode=false;focusElement(ready);}
     if(!modal.contains(document.activeElement)||!visible(document.activeElement)){
       focusElement(preferred(modal))||focusElement(choices(modal)[0]);
@@ -174,6 +174,11 @@ function navigate(direction){
   const available=choices(modal||document);
   if(!available.length)return;
   const current=document.activeElement;
+  if(!modal&&active==='settings'){
+    const settings=document.getElementById('view-settings'),dock=document.querySelector('.sidebar');
+    if(direction==='ArrowLeft'&&settings.contains(current)&&focusElement(dock.querySelector('[data-nav="settings"]')))return;
+    if(direction==='ArrowRight'&&dock.contains(current)&&focusElement(choices(settings)[0]))return;
+  }
   if(!available.includes(current)){focusElement(preferred(modal||document))||focusElement(available[0]);return;}
   const r=current.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
   const [x,y]=arrows[direction];
@@ -476,7 +481,7 @@ vpnCheck.addEventListener('change',()=>{
   if(vpnCheck.checked)warpButton.click();
 });
 function localize(){
-  version.textContent='ASPLAYER Universal 5.9.28 · LibVLC 3.7.7 · Alftech Solutions';
+  version.textContent='ASPLAYER Universal 6.0.0 · LibVLC 3.7.7 · Alftech Solutions';
   heading.textContent=t('Imagen, rendimiento y conexión','Picture, performance and connection');
   sharpLabel.textContent=t('Mejora de nitidez (experimental)','Sharpness enhancement (experimental)');
   sharp.options[0].textContent=t('Normal (recomendado)','Normal (recommended)');
@@ -496,7 +501,7 @@ if(place)place.appendChild(panel);
 // Make the actual version visible on the existing About text as well.
 for(const el of document.querySelectorAll('#view-settings p')){
   if(el===version)continue;
-  if(/ASPLAYER Universal 5\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 5.9.28 · LibVLC/VLC · Alftech Solutions';
+  if(/ASPLAYER Universal [56]\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 6.0.0 · LibVLC / Media3 · Alftech Solutions';
 }
 if(typeof languageUI==='function'){
  const prior=languageUI;languageUI=function(){prior.apply(this,arguments);localize();};

@@ -78,6 +78,7 @@ rememberPlay=function(mode,it){
  const rows=getHistory(mode).filter(x=>String(x.id)!==id);
  const title=mode==='series'&&item.seriesName?`${item.seriesName} · ${it.title||it.name||tr('historyEpisode')}`:String(it.title||it.name||'');
  rows.unshift({...prev,id,mode,title,watchedAt:Date.now(),item,
+  ...(mode==='live'?{playCount:prev?(prev.playCount??1):0}:{}),
   position:Number(prev?.position)||0,duration:Number(prev?.duration)||0});
  putHistory(mode,rows);
 };
@@ -190,10 +191,32 @@ function renderWatchResults(){
     if(target)target.focus({preventScroll:true});
   }
 }
+async function renderMostWatched(){
+ const home=G('most-watched-home');if(!home||active!=='home')return;
+ const request=++watchedRender,key=getPrefix();
+ if(watchedPrefix!==key){home.classList.add('hidden');watchedPrefix=key;}
+ const rows=getHistory('live').filter(r=>r?.item?.stream_id&&(r.playCount===undefined||r.playCount>0));
+ if(!session()||!rows.length){home.classList.add('hidden');return;}
+ let categories=[];
+ if(parentEnabled){try{categories=await cached('get_live_categories');}catch(_){categories=[];}}
+ if(request!==watchedRender||key!==getPrefix()||active!=='home')return;
+ const allowed=r=>!parentEnabled||(Array.isArray(categories)&&categories.some(c=>String(c.category_id)===String(r.item.category_id)&&!isAdult(c.category_name))&&!isAdult(r.title));
+ const best=rows.filter(allowed).sort((a,b)=>(Number(b.playCount)||1)-(Number(a.playCount)||1)||b.watchedAt-a.watchedAt).slice(0,20);
+ const holder=G('most-watched-channels');holder.replaceChildren();
+ for(const r of best){const b=document.createElement('button');b.type='button';b.className='most-watched-channel';b.textContent=r.title||r.item.name||'Live TV';b.onclick=()=>play(r.item,'live');holder.append(b);}
+ home.classList.toggle('hidden',!best.length);
+}
+let watchedRender=0,watchedPrefix='';
+window.ASPLAYER_COUNT_LIVE_VIEW=function(prefix,id){
+ if(!session()||prefix!==getPrefix())return;
+ const rows=getHistory('live'),row=rows.find(r=>String(r.id)===String(id));
+ if(row){row.playCount=Math.min(1000000,(Number(row.playCount)||0)+1);putHistory('live',rows);renderMostWatched();}
+};
 function renderWatchPanels(){
   document.body.classList.toggle('asplayer-catalog-open',watchTabs());
   updateWatchButtons();
   if(isWatchCategory())renderWatchResults();
+  renderMostWatched();
 }
 window.ASPLAYER_REFRESH_WATCH=renderWatchPanels;
 const prevWatchItems=renderItems;

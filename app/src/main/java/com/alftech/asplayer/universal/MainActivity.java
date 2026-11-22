@@ -73,6 +73,15 @@ public final class MainActivity extends Activity {
     private FrameLayout root;
     private WebView web;
     private VLCVideoLayout video;
+    private SmartVodEngine smartVod;
+    private boolean triedSmartVod,firstPlayback=true;
+    private long mediaTime(){return smartVod!=null?smartVod.player.getCurrentPosition():player.getTime();}
+    private long mediaLength(){return smartVod!=null?smartVod.duration():player.getLength();}
+    private boolean mediaPlaying(){return smartVod!=null?smartVod.player.isPlaying():player.isPlaying();}
+    private void mediaPause(){if(smartVod!=null)smartVod.player.pause();else player.pause();}
+    private void mediaPlay(){if(smartVod!=null)smartVod.player.play();else player.play();}
+    private void mediaFocus(){if(smartVod!=null)smartVod.view.requestFocus();else video.requestFocus();}
+    private void releaseSmartVod(){if(smartVod!=null){SmartVodEngine old=smartVod;smartVod=null;root.removeView(old.view);old.release();}}
     private LinearLayout controls, transportRow, extrasRow;
     private Button playPause, repairVideoButton, liveAspectButton, liveCloseButton, audioButton, subtitlesButton, aspectButton;
     private final ArrayList<List<View>> navigationRows=new ArrayList<>();
@@ -146,7 +155,7 @@ public final class MainActivity extends Activity {
     private final Runnable hideControls = () -> {
         if(controls != null && playerVisible && !timelineDragging && !trackDialogOpen) {
             controls.setVisibility(View.GONE);
-            if(remotePlayer()&&!feedbackBlocking())video.requestFocus();
+            if(remotePlayer()&&!feedbackBlocking())mediaFocus();
         }
     };
     private final Runnable progressTicker = new Runnable() {
@@ -187,10 +196,11 @@ public final class MainActivity extends Activity {
         web.addJavascriptInterface(new Bridge(), "ASPLAYER");
         root.addView(web,new FrameLayout.LayoutParams(-1,-1));
         video = new VLCVideoLayout(this);
-        video.setVisibility(View.GONE);
-        root.addView(video,new FrameLayout.LayoutParams(-1,-1));
+        // Build the first surface behind the opaque browsing WebView, without a provider connection.
+        video.setVisibility(View.VISIBLE);
+        root.addView(video,0,new FrameLayout.LayoutParams(-1,-1));
         video.setOnClickListener(v -> showControls());
-        video.setFocusableInTouchMode(true);
+        video.setFocusableInTouchMode(false);
         createControls();
         createPlaybackFeedback();
         // Mobile WebView paints under the transparent status/gesture bars.
@@ -234,13 +244,16 @@ public final class MainActivity extends Activity {
         vlcOptions.add("--skip-frames");
         vlc = new LibVLC(this,vlcOptions);
         player = new MediaPlayer(vlc);
+        video.post(()->{if(firstPlayback&&!playerVisible&&player!=null&&!attached){
+            try{player.attachViews(video,null,true,false);attached=true;}catch(RuntimeException ignored){}
+        }});
         // Warm Android's codec discovery while the user is browsing or signing in.
         // No hidden stream, provider request, decode session or extra connection.
         requests.execute(()->{try{new android.media.MediaCodecList(android.media.MediaCodecList.ALL_CODECS).getCodecInfos();}catch(RuntimeException ignored){}});
         player.setEventListener(e -> {
             final long eventAttempt=playbackAttempt;
             handler.post(() -> {
-            if(!playerVisible || eventAttempt!=playbackAttempt) return;
+            if(!playerVisible || eventAttempt!=playbackAttempt || smartVod!=null) return;
             switch(e.type) {
                 case MediaPlayer.Event.Vout:
                     if(playbackFailed)break;
@@ -434,14 +447,14 @@ public final class MainActivity extends Activity {
         return sec>=3600?String.format(Locale.US,"%d:%02d:%02d",sec/3600,(sec/60)%60,sec%60):
             String.format(Locale.US,"%02d:%02d",sec/60,sec%60);
     }
-    private boolean canSeek() { return player != null && !isLive && player.getLength()>0; }
+    private boolean canSeek() { return player != null && !isLive && mediaLength()>0; }
     private void syncTimeline() {
         if(timeline==null || elapsedText==null || durationText==null || player==null || !playerVisible)return;
         boolean available=canSeek();
         if(seekRow!=null)seekRow.setVisibility(available?View.VISIBLE:View.GONE);
         for(Button b:seekButtons)b.setEnabled(available);
         if(!available)return;
-        long length=player.getLength(),at=Math.max(0,player.getTime());
+        long length=mediaLength(),at=Math.max(0,mediaTime());
         if(!timelineDragging) {
             timeline.setProgress((int)Math.min(10000L,(at*10000L)/Math.max(1L,length)));
             elapsedText.setText(clock(at));
@@ -479,10 +492,10 @@ public final class MainActivity extends Activity {
         return "software".equals(decoderMode) || usingSoftwareFallback;
     }
     private boolean trySoftwareRecovery() {
-        if(!playerVisible || playingUrl.isEmpty() || usingSoftwareFallback
+        if(!playerVisible || playingUrl.isEmpty() || usingSoftwareFallback || smartVod!=null
                 || !"auto".equals(decoderMode))return false;
         usingSoftwareFallback=true;
-        long resume=(!isLive && player!=null)?Math.max(0,player.getTime()):0;
+        long resume=(!isLive && player!=null)?Math.max(pendingResumeMs,Math.max(0,mediaTime())):0;
         startMediaInternal(activeMediaUrl.isEmpty()?playingUrl:activeMediaUrl,resume);
         return true;
     }
@@ -490,7 +503,7 @@ public final class MainActivity extends Activity {
         if(!playerVisible || playingUrl.isEmpty())return;
         // Manual recovery also works when a decoder reports Vout but draws black frames.
         usingSoftwareFallback=true;
-        long resume=(!isLive && player!=null)?Math.max(0,player.getTime()):0;
+        long resume=(!isLive && player!=null)?Math.max(0,mediaTime()):0;
         startMediaInternal(activeMediaUrl.isEmpty()?playingUrl:activeMediaUrl,resume);
     }
     private String localized(String spanish,String english) {
@@ -608,12 +621,17 @@ public final class MainActivity extends Activity {
             return;
         }
         if((!playbackStarted||!videoOutputSeen)&&trySoftwareRecovery())return;
-        retryPosition=player!=null && !isLive?Math.max(0,player.getTime()):0;
+        if(!isLive&&smartVod==null&&!triedSmartVod&&"auto".equals(decoderMode)){
+            triedSmartVod=true;
+            long resume=Math.max(pendingResumeMs,Math.max(0,mediaTime()));
+            if(startSmartVod(resume))return;
+        }
+        retryPosition=player!=null && !isLive?Math.max(pendingResumeMs,Math.max(0,mediaTime())):0;
         playbackFailed=true;
         rebufferWaiting=false;
         cancelPlaybackDeadline();
         handler.removeCallbacks(showRebuffer);
-        if(player!=null)player.stop();
+        if(smartVod!=null)releaseSmartVod();else if(player!=null)player.stop();
         updateFeedbackText();
         if(playbackFeedback!=null){
             playbackFeedback.setVisibility(View.VISIBLE);
@@ -624,6 +642,7 @@ public final class MainActivity extends Activity {
     private void retryPlayback() {
         if(playingUrl.isEmpty())return;
         triedLiveFallback=false;
+        triedSmartVod=false;usingSoftwareFallback=false;
         startMediaInternal(playingUrl,retryPosition);
     }
     private void createControls() {
@@ -652,12 +671,12 @@ public final class MainActivity extends Activity {
             }
             @Override public void onProgressChanged(SeekBar bar,int progress,boolean fromUser) {
                 if(fromUser && canSeek()) {
-                    elapsedText.setText(clock((player.getLength()*progress)/10000L));
+                    elapsedText.setText(clock((mediaLength()*progress)/10000L));
                     showControls();
                 }
             }
             @Override public void onStopTrackingTouch(SeekBar bar) {
-                if(canSeek())seekTo((player.getLength()*bar.getProgress())/10000L);
+                if(canSeek())seekTo((mediaLength()*bar.getProgress())/10000L);
                 timelineDragging=false;
                 showControls();
             }
@@ -715,7 +734,7 @@ public final class MainActivity extends Activity {
     private Button defaultPlayerControl(){return isLive?repairVideoButton:playPause;}
     private void togglePause() {
         if(player==null)return;
-        if(player.isPlaying())player.pause();else player.play();
+        if(mediaPlaying())mediaPause();else mediaPlay();
         updatePlayerLabels();
     }
     private boolean feedbackBlocking(){
@@ -735,7 +754,7 @@ public final class MainActivity extends Activity {
             handler.postDelayed(hideControls,remotePlayer()?6500:3000);
     }
     private void updatePlayerLabels(){
-        if(playPause!=null)playPause.setText(player!=null&&player.isPlaying()?localized("Pausar","Pause"):localized("Reproducir","Play"));
+        if(playPause!=null)playPause.setText(player!=null&&mediaPlaying()?localized("Pausar","Pause"):localized("Reproducir","Play"));
         if(subtitlesButton!=null)subtitlesButton.setText(localized("Subtítulos","Subtitles"));
         if(aspectButton!=null)aspectButton.setText("contain".equals(pictureMode)?localized("Ampliar","Fill screen"):localized("Ajustar","Fit screen"));
         if(liveAspectButton!=null)liveAspectButton.setText("contain".equals(pictureMode)?localized("Ampliar pantalla","Fill screen"):localized("Ajustar pantalla","Fit screen"));
@@ -779,14 +798,14 @@ public final class MainActivity extends Activity {
     }
     private void seekTo(long at) {
         if(!canSeek())return;
-        long target=Math.max(0,Math.min(player.getLength()-1,at));
+        long target=Math.max(0,Math.min(mediaLength()-1,at));
         lastSeekAt=android.os.SystemClock.elapsedRealtime();
-        try {player.setTime(target);sendPosition(false);syncTimeline();}
+        try {if(smartVod!=null)smartVod.player.seekTo(target);else player.setTime(target);sendPosition(false);syncTimeline();}
         catch(Exception ignored){}
     }
     private void seekBy(long delta) {
         if(!canSeek())return;
-        seekTo(Math.max(0,player.getTime())+delta);
+        seekTo(Math.max(0,mediaTime())+delta);
     }
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         if(!playerVisible||trackDialogOpen)return super.dispatchKeyEvent(event);
@@ -815,8 +834,8 @@ public final class MainActivity extends Activity {
             if(key==KeyEvent.KEYCODE_MEDIA_REWIND)seekBy(-10000);
             else if(key==KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)seekBy(10000);
             else if(event.getRepeatCount()==0&&player!=null){
-                if(key==KeyEvent.KEYCODE_MEDIA_PLAY){if(!player.isPlaying())player.play();}
-                else if(key==KeyEvent.KEYCODE_MEDIA_PAUSE){if(player.isPlaying())player.pause();}
+                if(key==KeyEvent.KEYCODE_MEDIA_PLAY){if(!mediaPlaying())mediaPlay();}
+                else if(key==KeyEvent.KEYCODE_MEDIA_PAUSE){if(mediaPlaying())mediaPause();}
                 else togglePause();
             }
             showControls();return true;
@@ -858,12 +877,13 @@ public final class MainActivity extends Activity {
                 else rebufferCount=Math.max(0,rebufferCount-1);
             }
             // Live adapts independently from VOD, so a movie stall cannot slow the first channel.
-            return LivePlaybackPolicy.adaptiveCache(isLive,isLive?liveRebufferCount:rebufferCount);
+            return LivePlaybackPolicy.adaptiveCache(isLive,isLive?liveRebufferCount:rebufferCount,firstPlayback);
         }
         return 4000;
     }
     private void updateAspect() {
         if(player==null)return;
+        if(smartVod!=null){smartVod.aspect(pictureMode);return;}
         // The supported LibVLC ScaleType names vary; use reflection for graceful fallback.
         String requested = "contain".equals(pictureMode)?"SURFACE_BEST_FIT"
                 : "fill".equals(pictureMode)?"SURFACE_FILL":"SURFACE_FIT_SCREEN";
@@ -888,6 +908,7 @@ public final class MainActivity extends Activity {
         // Prior stream jitter influences the next stream's prebuffer (no forced restart).
         this.playingUrl=url; this.triedLiveFallback=false;
         this.usingSoftwareFallback=false;
+        this.triedSmartVod=false;
         startMediaInternal(url,resumeMs);
     }
     private void startMediaInternal(String url,long resumeMs) {
@@ -895,16 +916,18 @@ public final class MainActivity extends Activity {
         isLive=url.contains("/live/");
         configurePlaybackControls();
         try {
+            releaseSmartVod();
             cancelVideoWatchdog();
             videoOutputSeen=false;
             activeMediaUrl=url;
             if(playerVisible)player.stop();
-            if(attached && (!playerVisible || !isLive || usingSoftwareFallback)) {
+            if(attached && (!firstPlayback && (!playerVisible || !isLive || usingSoftwareFallback))) {
                 player.detachViews();
                 attached=false;
             }
             // A visible surface must be ready BEFORE attaching LibVLC's video output.
             video.setVisibility(View.VISIBLE);
+            video.setFocusableInTouchMode(true);video.bringToFront();controls.bringToFront();playbackFeedback.bringToFront();
             video.requestLayout();
             if(!attached){
                 player.attachViews(video,null,true,false);
@@ -924,6 +947,7 @@ public final class MainActivity extends Activity {
             media.addOption(":file-caching="+cache);
             player.setMedia(media);
             media.release();
+            firstPlayback=false;
             playerVisible=true;
             playbackAttempt++;
             videoOutputSeen=false;
@@ -938,7 +962,7 @@ public final class MainActivity extends Activity {
             video.setVisibility(View.VISIBLE);
             showLoadingFeedback();
             schedulePlaybackDeadline(LivePlaybackPolicy.startupTimeout(isLive,profile,triedLiveFallback||!allowLiveFallback,url));
-            if(remotePlayer())focusRemote(feedbackClose);else video.requestFocus();
+            if(remotePlayer())focusRemote(feedbackClose);else mediaFocus();
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             applySystemBars(true);
             root.requestApplyInsets();
@@ -954,13 +978,41 @@ public final class MainActivity extends Activity {
                 handler.postDelayed(timelineTicker,350);
             }
             if(web!=null)web.setVisibility(isLive?View.INVISIBLE:View.VISIBLE);
-            player.play();
+            mediaPlay();
             if(!remotePlayer())showControls();
         } catch(Exception error) {
             playerVisible=true;
             video.setVisibility(View.VISIBLE);
             handlePlaybackFailure();
         }
+    }
+    /** Keep VLC as the primary player and use a single Media3 retry only when automatic VOD fails. */
+    private boolean startSmartVod(long resume){
+        cancelPlaybackDeadline();cancelVideoWatchdog();handler.removeCallbacks(showRebuffer);
+        playbackAttempt++;final long attempt=playbackAttempt;
+        try{
+            player.stop();if(attached){player.detachViews();attached=false;}video.setVisibility(View.GONE);
+            playbackStarted=false;videoOutputSeen=false;reportedReady=false;rebufferWaiting=false;pendingResumeMs=0;
+            smartVod=new SmartVodEngine(this,Math.max(1000,Math.min(4000,networkCache())),new SmartVodEngine.Events(){
+                private boolean valid(){return playerVisible&&smartVod!=null&&attempt==playbackAttempt&&!playbackFailed;}
+                public void state(int state){if(!valid())return;
+                    if(state==androidx.media3.common.Player.STATE_READY){
+                        playbackStarted=true;rebufferWaiting=false;cancelPlaybackDeadline();handler.removeCallbacks(showRebuffer);
+                        if(videoOutputSeen)hidePlaybackFeedback();else scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(profile));
+                        syncTimeline();updatePlayerLabels();sendEvent("ready");
+                    }else if(state==androidx.media3.common.Player.STATE_BUFFERING){
+                        if(playbackStarted&&!rebufferWaiting){rebufferWaiting=true;handler.postDelayed(showRebuffer,1400);schedulePlaybackDeadline(25000);}
+                        sendEvent("buffering");
+                    }else if(state==androidx.media3.common.Player.STATE_ENDED){cancelPlaybackDeadline();cancelVideoWatchdog();hidePlaybackFeedback();sendPosition(true);sendEvent("ended");}
+                }
+                public void firstFrame(){if(!valid())return;videoOutputSeen=true;playbackStarted=true;cancelPlaybackDeadline();cancelVideoWatchdog();hidePlaybackFeedback();showControls();}
+                public void error(){if(valid())handlePlaybackFailure();}
+                public void tracks(){if(valid())refreshTrackMetadata();}
+            });
+            smartVod.view.setOnClickListener(v->showControls());root.addView(smartVod.view,new FrameLayout.LayoutParams(-1,-1));controls.bringToFront();playbackFeedback.bringToFront();
+            updateAspect();showLoadingFeedback();schedulePlaybackDeadline(LivePlaybackPolicy.startupTimeout(false,profile,true,activeMediaUrl));
+            smartVod.start(activeMediaUrl,resume,audioLanguage,subtitleLanguage);return true;
+        }catch(RuntimeException failure){releaseSmartVod();return false;}
     }
     private void sendEvent(String name) {
         try { JSONObject x=new JSONObject(); x.put("type",name); sendEvent(x); } catch(Exception ignored) { }
@@ -970,8 +1022,8 @@ public final class MainActivity extends Activity {
         if(!playerVisible || player==null || isLive)return;
         try {
             JSONObject e=new JSONObject();
-            e.put("type","position");e.put("position",Math.max(0,player.getTime()));
-            e.put("duration",Math.max(0,player.getLength()));e.put("ended",ended);
+            e.put("type","position");e.put("position",Math.max(0,mediaTime()));
+            e.put("duration",Math.max(0,mediaLength()));e.put("ended",ended);
             sendEvent(e);
         } catch(Exception ignored) { }
     }
@@ -996,6 +1048,7 @@ public final class MainActivity extends Activity {
         handler.removeCallbacks(timelineTicker);
         timelineDragging=false;
         if(player!=null){
+            releaseSmartVod();
             player.stop();
             if(attached){player.detachViews();attached=false;}
         }
@@ -1021,6 +1074,7 @@ public final class MainActivity extends Activity {
     private List<TrackOption> tracks(boolean subtitles) {
         ArrayList<TrackOption> out=new ArrayList<>();
         if(subtitles)out.add(new TrackOption("-1","Off / Desactivados"));
+        if(smartVod!=null){for(SmartVodEngine.Track t:smartVod.tracks(subtitles))out.add(new TrackOption(t.id,t.label));return out;}
         if(player==null)return out;
         Object all=invokeNoArgs(player,subtitles?"getAllSpuTracks":"getAllAudioTracks");
         if(all==null)all=invokeNoArgs(player,subtitles?"getSpuTracks":"getAudioTracks");
@@ -1044,6 +1098,7 @@ public final class MainActivity extends Activity {
         String[] labels=new String[options.size()];
         for(int i=0;i<options.size();i++)labels[i]=options.get(i).label;
         Object current=invokeNoArgs(player,subtitles?"getSpuTrack":"getAudioTrack");
+        if(smartVod!=null){current=subtitles?"-1":null;for(SmartVodEngine.Track t:smartVod.tracks(subtitles))if(t.selected){current=t.id;break;}}
         int chosen=-1;
         if(current!=null)for(int i=0;i<options.size();i++)if(options.get(i).id.equals(String.valueOf(current)))chosen=i;
         final Button origin=subtitles?subtitlesButton:audioButton;
@@ -1066,6 +1121,7 @@ public final class MainActivity extends Activity {
     }
     private void selectTrack(boolean subtitles,String id) {
         if(player==null)return;
+        if(smartVod!=null){smartVod.select(subtitles,id);return;}
         try {
             String method=subtitles?"setSpuTrack":"setAudioTrack";
             try { player.getClass().getMethod(method,String.class).invoke(player,id); }
@@ -1105,7 +1161,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "5.9.28"; }
+        @JavascriptInterface public String getAppVersion() { return "6.0.0"; }
         @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
             runOnUiThread(()->{
                 AnnouncementJobService.configure(MainActivity.this,enabled,language);
@@ -1277,7 +1333,7 @@ public final class MainActivity extends Activity {
         if(playerVisible){
             if(trackDialog!=null){trackDialog.dismiss();return;}
             if(remotePlayer()&&!feedbackBlocking()&&controls.getVisibility()==View.VISIBLE){
-                handler.removeCallbacks(hideControls);controls.setVisibility(View.GONE);video.requestFocus();return;
+                handler.removeCallbacks(hideControls);controls.setVisibility(View.GONE);mediaFocus();return;
             }
             closePlayer(true);
         }
@@ -1285,7 +1341,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onStop() {
         resumeOpening=playerVisible&&(!playbackStarted||!videoOutputSeen)&&!playbackFailed;
-        if(playerVisible&&player!=null){sendPosition(false);player.pause();}
+        if(playerVisible&&player!=null){sendPosition(false);mediaPause();}
         cancelPlaybackDeadline();
         cancelVideoWatchdog();
         handler.removeCallbacks(showRebuffer);
@@ -1305,7 +1361,7 @@ public final class MainActivity extends Activity {
         super.onResume();foreground=true;
         AnnouncementJobService.setForeground(true);
         if(resumeOpening&&playerVisible&&!playbackFailed&&player!=null){
-            resumeOpening=false;player.play();
+            resumeOpening=false;mediaPlay();
             if(playbackStarted&&!videoOutputSeen)scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(profile));
             else if(!playbackStarted)schedulePlaybackDeadline(LivePlaybackPolicy.startupTimeout(isLive,profile,triedLiveFallback||!allowLiveFallback,activeMediaUrl));
         }

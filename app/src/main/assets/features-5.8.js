@@ -11,6 +11,7 @@ const get=id=>document.getElementById(id);
 function syncNativeLanguage(){try{bridge.setUiLanguage(lang)}catch(_){}}
 syncNativeLanguage();
 let currentItem=null,currentMode=null,currentId='',currentPrefix='',nativeVisible=false;
+let liveCounted=false;
 // Remember the last format which delivered video, for this account in this app session.
 const workingLiveFormats=new Map();
 const idOf=item=>String(item?.stream_id??item?.series_id??item?.id??item?.name??'');
@@ -27,6 +28,7 @@ function liveExtension(account,profile){
 }
 const oldPlay=play;
 play=function(item,mode){
+  liveCounted=false;
   currentItem=item;
   currentMode=mode;
   currentId=idOf(item);
@@ -86,6 +88,9 @@ function rememberNativeProgress(ms,durationMs,ended){
 }
 window.ASPLAYER58_EVENT=function(event){
   if(!event||!event.type)return;
+  if(event.type==='videoReady'&&currentMode==='live'&&nativeVisible&&!liveCounted&&currentPrefix===sessionPrefix()){
+    liveCounted=true;window.ASPLAYER_COUNT_LIVE_VIEW?.(currentPrefix,currentId);
+  }
   if(event.type==='videoReady'&&currentMode==='live'&&currentPrefix===sessionPrefix()&&
      !['hls','mpegts'].includes(settings.liveFormat)&&['m3u8','ts'].includes(event.transport)){
     workingLiveFormats.set(currentPrefix,event.transport);
@@ -128,8 +133,8 @@ stopPlayer=function(){
 const settingsHint=document.createElement('p');
 settingsHint.className='tiny';
 settingsHint.textContent=lang==='es'
-  ?'ASPLAYER 5.9.4 usa LibVLC/VLC para TV, películas y series. Selecciona pistas disponibles desde los controles nativos del reproductor.'
-  :'ASPLAYER 5.9.4 uses LibVLC/VLC for live TV, films and series. Choose available audio/subtitle tracks in the native player controls.';
+  ?'Motor inteligente: LibVLC como base y Media3 como respaldo para películas y series. TV en vivo permanece en LibVLC.'
+  :'Smart engine: LibVLC as the primary engine, Media3 as VOD fallback. Live TV stays on LibVLC.';
 const playerSetting=get('preferred-player')?.closest('.setting');
 if(playerSetting)playerSetting.appendChild(settingsHint);
 const decoderKey='asplayer:decoder:v592';
@@ -153,8 +158,8 @@ decoderSelect.addEventListener('change',()=>{
 });
 if(playerSetting){playerSetting.appendChild(decoderLabel);playerSetting.appendChild(decoderSelect);}
 function syncDecoderLabels(){
-  decoderLabel.textContent=lang==='es'?'Decodificación de vídeo':'Video decoding';
-  decoderSelect.options[0].textContent=lang==='es'?'Automático (recomendado)':'Automatic (recommended)';
+  decoderLabel.textContent=lang==='es'?'Motor de reproducción':'Playback engine';
+  decoderSelect.options[0].textContent=lang==='es'?'Motor inteligente (recomendado)':'Smart engine (recommended)';
   decoderSelect.options[1].textContent=lang==='es'?'Hardware':'Hardware';
   decoderSelect.options[2].textContent=lang==='es'?'Software':'Software';
 }
@@ -168,8 +173,8 @@ languageUI=function(){
   syncNativeLanguage();
   syncDecoderLabels();
   settingsHint.textContent=lang==='es'
-    ?'LibVLC/VLC está configurado para TV, películas y series. Los idiomas y subtítulos disponibles se eligen en el reproductor.'
-    :'LibVLC/VLC is configured for live TV, movies and series. Choose available tracks in the player.';
+    ?'Motor inteligente utiliza LibVLC y, si es necesario, Media3 para recuperar películas y series sin conexiones simultáneas. TV en vivo conserva LibVLC. El audio y los subtítulos se eligen en el reproductor.'
+    :'Smart engine uses LibVLC and Media3 when needed to recover movies and series, without concurrent streams. Live TV keeps LibVLC. Choose available audio and subtitles in the player.';
 };
 console.info('ASPLAYER 5.8 LibVLC bridge active');
 })();

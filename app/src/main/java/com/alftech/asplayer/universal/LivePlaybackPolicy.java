@@ -9,6 +9,9 @@ final class LivePlaybackPolicy {
     static int adaptiveCache(boolean live, int stalls) {
         return Math.min(8500, (live ? 1000 : 2400) + Math.max(0, stalls) * 1200);
     }
+    static int adaptiveCache(boolean live,int stalls,boolean coldStart){
+        return coldStart&&!live&&stalls==0?1600:adaptiveCache(live,stalls);
+    }
 
     static String alternate(String url) {
         if (url == null) return "";

@@ -32,7 +32,7 @@ Object.assign(LABELS.es,{
  globalSearchSlow:'Buscando en segundo plano. Los resultados aparecen conforme se encuentran.'
 });
 
-const PREVIEW_CATEGORY_COUNT=2, PREVIEW_LIMIT=18, PER_PAGE=18, MAX_RESULTS=350;
+const PREVIEW_CATEGORY_COUNT=2, PREVIEW_LIMIT=50, PER_PAGE=50, MAX_RESULTS=350;
 let indexToken=0, currentSearch=null, preview=[], previewLoaded=false, previewAccount='', scanTimer=0;
 const categoryCache=new Map(),categoryPending=new Map();
 const historicalLoad=loadItems, historicalApply=applyFilter, historicalRender=renderItems;

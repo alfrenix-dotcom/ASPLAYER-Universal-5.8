@@ -54,6 +54,11 @@ const path=require('node:path');
       assert.equal(await page.evaluate(()=>document.querySelector('#view-settings .settings-grid').children[1].contains(document.querySelector('#parent-toggle'))),true);
       assert.equal(await page.evaluate(()=>document.querySelector('#view-settings .settings-grid').children[2].contains(document.querySelector('#language'))),true);
       assert.equal(order[3],'glass-settings');
+      if(tv){
+        await page.evaluate(()=>{document.querySelector('#view-catalog').classList.add('hidden');document.querySelector('#view-settings').classList.remove('hidden');active='settings';document.body.classList.remove('asplayer-catalog-open')});
+        const columns=await page.locator('#view-settings .settings-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
+        assert.equal(columns,1,'TV settings must use a single column');
+      }
       assert.deepEqual(errors,[]);
       await page.close();
     }

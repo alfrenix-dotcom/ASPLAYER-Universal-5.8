@@ -10,6 +10,9 @@ public final class LivePlaybackPolicyTest {
         if(LivePlaybackPolicy.adaptiveCache(true,0)!=1000)throw new AssertionError("Live initial buffer");
         if(LivePlaybackPolicy.adaptiveCache(true,2)!=3400)throw new AssertionError("Live adaptive growth");
         if(LivePlaybackPolicy.adaptiveCache(false,0)!=2400)throw new AssertionError("VOD initial buffer");
+        if(LivePlaybackPolicy.adaptiveCache(false,0,true)!=1600)throw new AssertionError("Cold VOD budget");
+        if(LivePlaybackPolicy.adaptiveCache(false,2,true)!=4800)throw new AssertionError("Preserve anti-stall policy");
+        if(LivePlaybackPolicy.adaptiveCache(true,0,true)!=1000)throw new AssertionError("Do not change live TV cache");
         if(LivePlaybackPolicy.startupTimeout(true,"adaptive",false,ts)!=7000)throw new AssertionError("Early live fallback deadline");
         if(LivePlaybackPolicy.startupTimeout(true,"adaptive",true,hls)!=12000)throw new AssertionError("Alternate gets longer deadline");
         if(LivePlaybackPolicy.startupTimeout(true,"ultra",false,hls)!=25000)throw new AssertionError("Ultra profile deadline");
