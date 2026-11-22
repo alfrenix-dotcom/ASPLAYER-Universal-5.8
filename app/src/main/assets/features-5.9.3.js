@@ -30,6 +30,7 @@ document.head.appendChild(css);
 let remote = false, modal = null, opener = null, waitingEpisode = false;
 let locked = [], lastDpadAt = 0, lastTrigger = null, redirecting = false;
 let textLocked=null, textEditing=null;
+let pendingCategory=null;
 try { remote = bridge.isAndroidTv() === true; } catch (_) {}
 remote = remote || !!window.AndroidTVNavigation || /Android TV|Google TV|AFT[A-Z]/i.test(navigator.userAgent);
 const arrows = {ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
@@ -208,6 +209,7 @@ document.addEventListener('click',e=>{
 },true);
 document.addEventListener('focusin',e=>{
   if(!remote)return;
+  if(isTextField(e.target))pendingCategory=null;
   if(modal&&!modal.contains(e.target)&&!redirecting){
     redirecting=true;focusElement(preferred(modal))||focusElement(choices(modal)[0]);redirecting=false;
     return;
@@ -329,7 +331,7 @@ contentPane.append(document.querySelector('.catalogtools'));
 const globalStatus=document.getElementById('all-global-status');
 if(globalStatus)contentPane.append(globalStatus);
 contentPane.append(resultBar,cards,document.getElementById('loadmore'));
-let pendingCategory=null, defaultCategorySelection=false;
+let defaultCategorySelection=false;
 const catalogTabs=['live','vod','series'];
 const categoryStyle=document.createElement('style');
 categoryStyle.textContent=`
