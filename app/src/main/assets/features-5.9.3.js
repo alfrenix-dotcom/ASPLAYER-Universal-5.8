@@ -107,6 +107,18 @@ function preferred(scope){
   if(scope.id==='modern-player')return scope.querySelector('#player-toggle');
   return choices(scope)[0];
 }
+function restoreScreenFocus(){
+  // A native WebView can have Android focus while no HTML control has it.
+  // Keep the current visible selection, otherwise enter the proper screen.
+  const auth=document.getElementById('auth-screen'),shell=document.getElementById('app-shell');
+  const scope=auth&&!auth.classList.contains('hidden')?auth:shell;
+  if(!scope)return;
+  const current=document.activeElement;
+  if(scope.contains(current)&&visible(current))return;
+  const target=scope===auth?auth.querySelector('#access-pin'):
+    scope.querySelector('.sidebar [data-nav].active');
+  focusElement(target)||focusElement(choices(scope)[0]);
+}
 function syncScope(){
   if(!remote)return;
   document.body.classList.add('asplayer-tv-dpad');
@@ -144,14 +156,15 @@ function syncScope(){
     if(!modal.contains(document.activeElement)||!visible(document.activeElement)){
       focusElement(preferred(modal))||focusElement(choices(modal)[0]);
     }
-  }
+  }else restoreScreenFocus();
 }
 function enableRemote(){if(!remote)remote=true;syncScope();}
+window.ASPLAYER_REMOTE_FOCUS=()=>enableRemote();
 if(remote)enableRemote();
-// Observe only overlay state/content, not catalog refreshes or focus styling.
+// Observe screen transitions and overlay state/content, not focus styling.
 const observer=new MutationObserver(records=>{
   if(!remote)return;
-  if(records.some(r=>r.type==='attributes'&&r.target.matches('.modal,.playeroverlay') ||
+  if(records.some(r=>r.type==='attributes'&&r.target.matches('.modal,.playeroverlay,#auth-screen,#app-shell,#view-home,#view-catalog,#view-settings') ||
       r.type==='childList'&&r.target.closest('.modal,.playeroverlay')))syncScope();
 });
 observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
@@ -209,7 +222,11 @@ document.addEventListener('keydown',e=>{
   const ok=['Enter','Accept','Select',' '].includes(e.key);
   if(arrow||e.key==='Tab')pendingCategory=null;
   if(!arrow&&!ok&&e.key!=='Tab')return;
-  if(!remote&&!arrow)return; // touch-only mobile remains unchanged
+  if(!remote&&!arrow){
+    // A box may not advertise Leanback, but the actual native D-pad does.
+    let nativeRemote=false;try{nativeRemote=bridge.isRemoteNavigation?.()===true;}catch(_){}
+    if(!ok||!nativeRemote)return; // touch-only mobile remains unchanged
+  }
   enableRemote();
   const a=document.activeElement,tag=a?.tagName;
   if(modal && (arrow||ok||e.key==='Tab'))waitingEpisode=false;
@@ -218,7 +235,7 @@ document.addEventListener('keydown',e=>{
     if(list.length)focusElement(list[(list.indexOf(a)+(e.shiftKey?-1:1)+list.length)%list.length]);
     return;
   }
-  if(ok&&modal&&a?.matches('button,input[type="button"],input[type="submit"],a[href]')){
+  if(ok&&a?.matches('button,input[type="button"],input[type="submit"],a[href]')){
     consume(e);if(!e.repeat)a.click();return;
   }
   if(!arrow)return;
@@ -486,7 +503,7 @@ vpnCheck.addEventListener('change',()=>{
   if(vpnCheck.checked)warpButton.click();
 });
 function localize(){
-  version.textContent='ASPLAYER Universal 6.0.0 · LibVLC 3.7.7 · Alftech Solutions';
+  version.textContent='ASPLAYER Universal 6.0.1 · LibVLC 3.7.7 · Alftech Solutions';
   heading.textContent=t('Imagen, rendimiento y conexión','Picture, performance and connection');
   sharpLabel.textContent=t('Mejora de nitidez (experimental)','Sharpness enhancement (experimental)');
   sharp.options[0].textContent=t('Normal (recomendado)','Normal (recommended)');
@@ -506,7 +523,7 @@ if(place)place.appendChild(panel);
 // Make the actual version visible on the existing About text as well.
 for(const el of document.querySelectorAll('#view-settings p')){
   if(el===version)continue;
-  if(/ASPLAYER Universal [56]\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 6.0.0 · LibVLC / Media3 · Alftech Solutions';
+  if(/ASPLAYER Universal [56]\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 6.0.1 · LibVLC / Media3 · Alftech Solutions';
 }
 if(typeof languageUI==='function'){
  const prior=languageUI;languageUI=function(){prior.apply(this,arguments);localize();};

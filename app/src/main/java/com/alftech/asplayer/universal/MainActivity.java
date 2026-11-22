@@ -95,6 +95,22 @@ public final class MainActivity extends Activity {
             || getPackageManager().hasSystemFeature("android.software.leanback");
     }
     private boolean remotePlayer(){return remotePlayerMode||isTvDevice();}
+    private volatile boolean browsingRemoteMode;
+    private void setVideoNavigationEnabled(boolean enabled){
+        if(video==null)return;
+        // A pre-attached VLC surface may be VISIBLE underneath the WebView.
+        // It must not take Android focus (including any SurfaceView children).
+        video.setDescendantFocusability(enabled?ViewGroup.FOCUS_BEFORE_DESCENDANTS:ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        video.setFocusableInTouchMode(enabled);
+        video.setFocusable(enabled);
+        if(!enabled)video.clearFocus();
+    }
+    private void restoreBrowsingFocus(boolean restoreDom){
+        if(playerVisible||web==null||web.getVisibility()!=View.VISIBLE)return;
+        if(!web.hasFocus()&&!web.requestFocus())web.requestFocusFromTouch();
+        if(restoreDom&&(isTvDevice()||browsingRemoteMode))
+            evaluate("window.ASPLAYER_REMOTE_FOCUS?.()");
+    }
     private void focusRemote(View v){
         if(v!=null&&!v.requestFocus()&&remotePlayer())v.requestFocusFromTouch();
     }
@@ -179,6 +195,8 @@ public final class MainActivity extends Activity {
         glassTransparency=Math.max(0,Math.min(100,getSharedPreferences("asplayer_appearance",MODE_PRIVATE).getInt("transparency_v2",50)));
         applySystemBars(false);
         web = new WebView(this);
+        web.setFocusable(true);
+        web.setFocusableInTouchMode(true);
         web.setBackgroundColor(Color.rgb(8,15,34));
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
@@ -190,7 +208,7 @@ public final class MainActivity extends Activity {
             }
             @Override public void onPageFinished(WebView v,String url) {
                 super.onPageFinished(v,url);
-                if("file:///android_asset/index.html".equals(url)){publishWebInsets();publishUpdateState();}
+                if("file:///android_asset/index.html".equals(url)){publishWebInsets();publishUpdateState();if(isTvDevice()||browsingRemoteMode)restoreBrowsingFocus(true);}
             }
         });
         web.addJavascriptInterface(new Bridge(), "ASPLAYER");
@@ -200,7 +218,7 @@ public final class MainActivity extends Activity {
         video.setVisibility(View.VISIBLE);
         root.addView(video,0,new FrameLayout.LayoutParams(-1,-1));
         video.setOnClickListener(v -> showControls());
-        video.setFocusableInTouchMode(false);
+        setVideoNavigationEnabled(false);
         createControls();
         createPlaybackFeedback();
         // Mobile WebView paints under the transparent status/gesture bars.
@@ -230,6 +248,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         setContentView(root);
+        if(isTvDevice())restoreBrowsingFocus(false);
         root.requestApplyInsets();
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
@@ -808,12 +827,19 @@ public final class MainActivity extends Activity {
         seekTo(Math.max(0,mediaTime())+delta);
     }
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
-        if(!playerVisible||trackDialogOpen)return super.dispatchKeyEvent(event);
         int key=event.getKeyCode();
         boolean arrow=key==KeyEvent.KEYCODE_DPAD_LEFT||key==KeyEvent.KEYCODE_DPAD_RIGHT
             ||key==KeyEvent.KEYCODE_DPAD_UP||key==KeyEvent.KEYCODE_DPAD_DOWN;
         boolean ok=key==KeyEvent.KEYCODE_DPAD_CENTER||key==KeyEvent.KEYCODE_ENTER
             ||key==KeyEvent.KEYCODE_NUMPAD_ENTER;
+        if(!playerVisible){
+            // Route real remote keys to the browsing WebView, not the warm video surface.
+            // Keep native WebView keyboard/IME and select handling intact.
+            if(arrow||key==KeyEvent.KEYCODE_DPAD_CENTER)browsingRemoteMode=true;
+            if(arrow||(ok&&(isTvDevice()||browsingRemoteMode)))restoreBrowsingFocus(false);
+            return super.dispatchKeyEvent(event);
+        }
+        if(trackDialogOpen)return super.dispatchKeyEvent(event);
         boolean transport=key==KeyEvent.KEYCODE_MEDIA_REWIND||key==KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
             ||key==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE||key==KeyEvent.KEYCODE_MEDIA_PLAY||key==KeyEvent.KEYCODE_MEDIA_PAUSE;
         if(!arrow&&!ok&&!transport)return super.dispatchKeyEvent(event);
@@ -927,7 +953,7 @@ public final class MainActivity extends Activity {
             }
             // A visible surface must be ready BEFORE attaching LibVLC's video output.
             video.setVisibility(View.VISIBLE);
-            video.setFocusableInTouchMode(true);video.bringToFront();controls.bringToFront();playbackFeedback.bringToFront();
+            setVideoNavigationEnabled(true);video.bringToFront();controls.bringToFront();playbackFeedback.bringToFront();
             video.requestLayout();
             if(!attached){
                 player.attachViews(video,null,true,false);
@@ -1053,12 +1079,13 @@ public final class MainActivity extends Activity {
             if(attached){player.detachViews();attached=false;}
         }
         if(controls!=null)controls.setVisibility(View.GONE);
-        if(video!=null)video.setVisibility(View.GONE);
+        if(video!=null){setVideoNavigationEnabled(false);video.setVisibility(View.GONE);}
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         applySystemBars(false);
         root.requestApplyInsets();
         if(web!=null)web.setVisibility(View.VISIBLE);
-        if(notifyWeb){web.requestFocus();sendEvent("closed");}
+        if(notifyWeb)sendEvent("closed");
+        if(isTvDevice()||browsingRemoteMode||notifyWeb)restoreBrowsingFocus(true);
     }
     private static Object invokeNoArgs(Object o,String name) {
         try { return o.getClass().getMethod(name).invoke(o); }catch(Exception ignored){return null;}
@@ -1143,6 +1170,9 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public boolean isAndroidTv() {
             return isTvDevice();
         }
+        @JavascriptInterface public boolean isRemoteNavigation() {
+            return isTvDevice()||browsingRemoteMode;
+        }
 
         private final SessionVault sessionVault = new SessionVault(MainActivity.this);
         @JavascriptInterface public boolean saveSession(String value) { return sessionVault.save(value); }
@@ -1161,7 +1191,7 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
-        @JavascriptInterface public String getAppVersion() { return "6.0.0"; }
+        @JavascriptInterface public String getAppVersion() { return "6.0.1"; }
         @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
             runOnUiThread(()->{
                 AnnouncementJobService.configure(MainActivity.this,enabled,language);
@@ -1359,6 +1389,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume(){
         super.onResume();foreground=true;
+        if(isTvDevice()||browsingRemoteMode)restoreBrowsingFocus(true);
         AnnouncementJobService.setForeground(true);
         if(resumeOpening&&playerVisible&&!playbackFailed&&player!=null){
             resumeOpening=false;mediaPlay();

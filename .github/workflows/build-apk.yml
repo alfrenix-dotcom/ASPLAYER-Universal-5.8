@@ -48,6 +48,12 @@ jobs:
           assert "lockBackground" in js and "waitingEpisode" in js
           assert "tv-catalog-layout" in js and "catalogDirection(e.key)" in js
           assert "isAndroidTv()" in java and "movePlayerFocus(key)" in java and "selected==timeline" in java
+          assert 'ViewGroup.FOCUS_BLOCK_DESCENDANTS' in java and 'video.setFocusable(enabled)' in java
+          assert 'setVideoNavigationEnabled(false);' in java.split('setContentView(root);')[0]
+          assert 'setVideoNavigationEnabled(true);video.bringToFront()' in java
+          assert 'if(!web.hasFocus()&&!web.requestFocus())web.requestFocusFromTouch();' in java
+          assert 'restoreBrowsingFocus(false);' in java.split('int key=event.getKeyCode();',1)[1].split('boolean transport',1)[0]
+          assert 'ASPLAYER_REMOTE_FOCUS' in java and 'restoreScreenFocus' in js
           assert 'transportRow.setVisibility(isLive?View.GONE:View.VISIBLE)' in java
           assert 'extrasRow.setVisibility(isLive?View.GONE:View.VISIBLE)' in java
           assert 'liveCloseButton.setVisibility(isLive?View.VISIBLE:View.GONE)' in java
