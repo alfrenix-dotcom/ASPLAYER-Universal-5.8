@@ -124,9 +124,14 @@
       syncDensity(s);
       const first = viewportIndex(s);
       const last = first + Math.ceil(s.pane.clientHeight / stride(s));
+      // A queued scroll frame may arrive immediately after DPAD advances into
+      // the next virtual window. Never evict the currently focused TV item.
+      const focused = document.activeElement;
+      const remoteIndex = document.body.classList.contains('asplayer-tv-dpad') &&
+        s.holder.contains(focused) ? indexOf(focused) : -1;
       // Use the viewport's end to prefetch the next block, but do not retain
       // unbounded image nodes when scrolling back through a large category.
-      renderWindow(s, Math.min(s.loaded - 1, last));
+      renderWindow(s, remoteIndex >= 0 ? remoteIndex : Math.min(s.loaded - 1, last));
     });
   }
   function mount(holder, rows, render, options) {
