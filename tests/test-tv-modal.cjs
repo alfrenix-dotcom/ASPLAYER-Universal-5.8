@@ -48,13 +48,25 @@ const {pathToFileURL}=require('node:url');
     };
     await verifyHome(page);
     assert.equal(await page.locator('#most-watched-home').isVisible(),false);
-    await page.evaluate(()=>{
+    await page.route('https://logos.example.test/**',route=>route.fulfill({status:200,contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="cyan"/></svg>'}));
+    await page.evaluate(async()=>{
       loginPinAccepted=true;sessions[server().key]={user:'tester',pass:'test',meta:{}};active='home';parentEnabled=false;
       const rows=Array.from({length:25},(_,i)=>({id:String(i+1),title:'Channel '+(i+1),playCount:i+1,watchedAt:i,item:{stream_id:String(i+1),name:'Channel '+(i+1)}}));
+      rows[24].item.stream_icon='https://logos.example.test/direct.svg';rows[23].item.category_id='88';
+      await cacheWrite(sessionPrefix()+'get_live_streams|'+JSON.stringify({category_id:'88'}),[{stream_id:'24',stream_icon:'https://logos.example.test/cached.svg'}]);
       store(HISTORY_KEY,{[sessionPrefix()]:{live:rows,vod:[],series:[]}});window.ASPLAYER_REFRESH_WATCH();
     });
     assert.equal(await page.locator('#most-watched-channels button').count(),20);
-    assert.equal(await page.locator('#most-watched-channels button').first().textContent(),'Channel 25');
+    assert.equal(await page.locator('#most-watched-channels button strong').first().textContent(),'Channel 25');
+    const watched=page.locator('#most-watched-channels');
+    await watched.scrollIntoViewIfNeeded();
+    await page.waitForFunction(()=>document.querySelector('[data-channel-id="25"]').classList.contains('channel-logo-ready')&&document.querySelector('[data-channel-id="24"]').classList.contains('channel-logo-ready'));
+    assert.equal(await watched.locator('[data-channel-id="23"] .channel-logo-fallback').isVisible(),true);
+    assert(await watched.evaluate(el=>getComputedStyle(el).display==='flex'&&el.scrollWidth>el.clientWidth&&el.firstElementChild.offsetTop===el.lastElementChild.offsetTop));
+    await watched.locator('button').first().focus();
+    for(let i=0;i<7;i++)await page.keyboard.press('ArrowRight');
+    await page.waitForFunction(()=>document.activeElement.dataset.channelId==='18'&&document.querySelector('#most-watched-channels').scrollLeft>0);
+    console.log('PASS: watched-channel logo cache, fallback, horizontal carousel and D-pad');
     await page.evaluate(()=>{store(HISTORY_KEY,{});window.ASPLAYER_REFRESH_WATCH()});
     assert.equal(await page.locator('#most-watched-home').isVisible(),false);
     await page.evaluate(()=>{

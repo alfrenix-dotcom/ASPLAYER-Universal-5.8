@@ -19,7 +19,8 @@ function contentId(it){return String(it?.stream_id??it?.series_id??it?.id??it?.n
 function favouriteItems(){return accountStore(FAVORITES_KEY)}
 function favouriteId(it){return String(it.stream_id??it.id??'')}
 function favHas(it){return favouriteItems().some(x=>favouriteId(x)===favouriteId(it))}
-function cleanItem(it){const allowed=['stream_id','series_id','id','category_id','name','title','container_extension','stream_icon','cover','movie_image','added','episode_num','season','seriesName','seriesId'];const out={};for(const k of allowed)if(it&&it[k]!=null)out[k]=it[k];return out}
+function cleanItem(it){const allowed=['stream_id','series_id','id','category_id','name','title','container_extension','stream_icon','cover','movie_image','logo','icon','added','episode_num','season','seriesName','seriesId'];const out={};for(const k of allowed)if(it&&it[k]!=null)out[k]=it[k];return out}
+function channelLogo(it){return [it?.stream_icon,it?.logo,it?.icon,it?.cover,it?.movie_image].map(safeImage).find(Boolean)||''}
 function toggleFavourite(it){
  if(!it?.stream_id)return;
  let rows=favouriteItems().filter(x=>favouriteId(x)!==favouriteId(it));
@@ -73,6 +74,7 @@ showSeries=function(it){currentSeries=cleanItem(it);return historicalShowSeries(
 const historicalRemember=rememberPlay;
 rememberPlay=function(mode,it){
  const id=contentId(it),prev=findRow(mode,id),item=cleanItem(it);
+ if(mode==='live'&&!channelLogo(item)&&channelLogo(prev?.item))item.stream_icon=channelLogo(prev.item);
  if(mode==='series'&&currentSeries){item.seriesName=item.seriesName||currentSeries.name;item.seriesId=item.seriesId||currentSeries.series_id;item.category_id=item.category_id||currentSeries.category_id;}
  historicalRemember(mode,it);
  const rows=getHistory(mode).filter(x=>String(x.id)!==id);
@@ -194,7 +196,7 @@ function renderWatchResults(){
 async function renderMostWatched(){
  const home=G('most-watched-home');if(!home||active!=='home')return;
  const request=++watchedRender,key=getPrefix();
- if(watchedPrefix!==key){home.classList.add('hidden');watchedPrefix=key;}
+ if(watchedPrefix!==key){home.classList.add('hidden');const rail=G('most-watched-channels');rail.replaceChildren();rail.scrollLeft=0;watchedPrefix=key;}
  const rows=getHistory('live').filter(r=>r?.item?.stream_id&&(r.playCount===undefined||r.playCount>0));
  if(!session()||!rows.length){home.classList.add('hidden');return;}
  let categories=[];
@@ -202,9 +204,45 @@ async function renderMostWatched(){
  if(request!==watchedRender||key!==getPrefix()||active!=='home')return;
  const allowed=r=>!parentEnabled||(Array.isArray(categories)&&categories.some(c=>String(c.category_id)===String(r.item.category_id)&&!isAdult(c.category_name))&&!isAdult(r.title));
  const best=rows.filter(allowed).sort((a,b)=>(Number(b.playCount)||1)-(Number(a.playCount)||1)||b.watchedAt-a.watchedAt).slice(0,20);
- const holder=G('most-watched-channels');holder.replaceChildren();
- for(const r of best){const b=document.createElement('button');b.type='button';b.className='most-watched-channel';b.textContent=r.title||r.item.name||'Live TV';b.onclick=()=>play(r.item,'live');holder.append(b);}
+ const holder=G('most-watched-channels'),previous=document.activeElement;
+ const existing=new Map([...holder.children].map(b=>[b.dataset.channelId,b]));
+ const favs=new Map(favouriteItems().map(it=>[String(it.stream_id),it]));
+ function applyLogo(b,url){
+  if(!url||b.dataset.logo===url)return;
+  b.dataset.logo=url;const img=b.querySelector('img'),fallback=b.querySelector('.channel-logo-fallback');b.classList.remove('channel-logo-ready');fallback.hidden=false;
+  img.onload=()=>{if(b.dataset.logo===url){b.classList.add('channel-logo-ready');fallback.hidden=true;}};img.onerror=()=>{if(b.dataset.logo===url){b.classList.remove('channel-logo-ready');fallback.hidden=false;}};img.src=url;
+ }
+ for(const [i,r] of best.entries()){
+  const id=String(r.item.stream_id),label=r.title||r.item.name||tr('live');let b=existing.get(id);
+  if(!b){b=document.createElement('button');b.type='button';b.className='poster most-watched-channel';b.dataset.channelId=id;
+   const art=document.createElement('div');art.className='channel-logo-frame';
+   const fallback=document.createElement('span');fallback.className='channel-logo-fallback';fallback.setAttribute('aria-hidden','true');fallback.textContent='▣';
+   const image=document.createElement('img');image.alt='';image.loading='lazy';image.decoding='async';
+   art.append(fallback,image);b.append(art,document.createElement('strong'));
+  }
+  b.querySelector('strong').textContent=label;b.title=label;b.setAttribute('aria-label',label);
+  b.onclick=()=>play({...r.item,...(b.dataset.logo?{stream_icon:b.dataset.logo}:{})},'live');
+  applyLogo(b,channelLogo(r.item)||channelLogo(favs.get(id)));
+  if(holder.children[i]!==b)holder.insertBefore(b,holder.children[i]||null);existing.delete(id);
+ }
+ for(const b of existing.values())b.remove();
  home.classList.toggle('hidden',!best.length);
+ if(previous?.dataset.channelId&&holder.contains(previous)&&document.activeElement!==previous)previous.focus({preventScroll:true});
+ // Recover old history artwork from the existing per-account cache only. No extra
+ // provider request or whole-library sync, and no cross-session result can leak.
+ const missing=best.filter(r=>![...holder.children].find(b=>b.dataset.channelId===String(r.item.stream_id))?.dataset.logo);
+ if(!missing.length)return;
+ const missingIds=new Set(missing.map(r=>String(r.item.stream_id)));
+ const extraKeys=[...new Set(missing.filter(r=>r.item.category_id!=null).map(r=>JSON.stringify({category_id:String(r.item.category_id)}))),JSON.stringify({})];
+ for(const extra of extraKeys){
+  const cachedRows=await cacheRead(key+'get_live_streams|'+extra);
+  if(request!==watchedRender||key!==getPrefix()||active!=='home')return;
+  for(const item of Array.isArray(cachedRows?.data)?cachedRows.data:[]){
+   const id=String(item.stream_id),logo=channelLogo(item);if(!missingIds.has(id)||!logo)continue;
+   const b=[...holder.children].find(b=>b.dataset.channelId===id);if(b){applyLogo(b,logo);missingIds.delete(id);}
+  }
+  if(!missingIds.size)break;
+ }
 }
 let watchedRender=0,watchedPrefix='';
 window.ASPLAYER_COUNT_LIVE_VIEW=function(prefix,id){

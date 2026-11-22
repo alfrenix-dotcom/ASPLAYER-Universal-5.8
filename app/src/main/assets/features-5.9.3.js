@@ -174,6 +174,11 @@ function navigate(direction){
   const available=choices(modal||document);
   if(!available.length)return;
   const current=document.activeElement;
+  if(!modal&&active==='home'&&current?.closest('#most-watched-channels')&&['ArrowLeft','ArrowRight'].includes(direction)){
+    const next=direction==='ArrowRight'?current.nextElementSibling:current.previousElementSibling;
+    if(next&&focusElement(next))return;
+    if(direction==='ArrowRight')return;
+  }
   if(!modal&&active==='settings'){
     const settings=document.getElementById('view-settings'),dock=document.querySelector('.sidebar');
     if(direction==='ArrowLeft'&&settings.contains(current)&&focusElement(dock.querySelector('[data-nav="settings"]')))return;
