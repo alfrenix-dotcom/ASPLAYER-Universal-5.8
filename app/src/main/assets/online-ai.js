@@ -41,8 +41,9 @@
   panel.classList.remove('hidden');status.textContent=tr('aiBusy');results.replaceChildren();
   try{
    const cacheKey=JSON.stringify([endpoint,language,tab,normalize(question)]);let response=answerCache.get(cacheKey);
-   if(!response){const requestQuestion=tab==='live'?question:question.slice(0,190)+'\nFor title searches, include equivalent official English and Spanish titles in keywords; keep the original query language first.';
-   response=await window.ASPLAYER_AI_REQUEST('/api/assistant',{question:requestQuestion,lang:language,category:tab==='series'?'series':tab==='vod'?'movie':'live'});if(response){if(answerCache.size>=32)answerCache.delete(answerCache.keys().next().value);answerCache.set(cacheKey,response);}}
+   // The v4 Worker (5.9.25) already asks for Spanish and English synonyms.
+   // Keep the original question and stable API; bilingual ranking stays on-device.
+   if(!response){response=await window.ASPLAYER_AI_REQUEST('/api/assistant',{question,lang:language,category:tab==='series'?'series':tab==='vod'?'movie':'live'});if(response){if(answerCache.size>=32)answerCache.delete(answerCache.keys().next().value);answerCache.set(cacheKey,response);}}
    if(!valid())return;
    status.textContent=response.mode==='search'?'':String(response.answer||'').slice(0,900);if(response.mode!=='search')return;
    const terms=termsFor(Array.isArray(response.keywords)?response.keywords.filter(x=>typeof x==='string'):[],question);

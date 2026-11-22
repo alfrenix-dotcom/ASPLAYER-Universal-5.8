@@ -214,6 +214,7 @@ window.ASPLAYER_COUNT_LIVE_VIEW=function(prefix,id){
 };
 function renderWatchPanels(){
   document.body.classList.toggle('asplayer-catalog-open',watchTabs());
+  document.body.classList.toggle('asplayer-settings-open',active==='settings');
   updateWatchButtons();
   if(isWatchCategory())renderWatchResults();
   renderMostWatched();

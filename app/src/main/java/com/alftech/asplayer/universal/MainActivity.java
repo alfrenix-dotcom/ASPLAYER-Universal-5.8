@@ -1019,7 +1019,7 @@ public final class MainActivity extends Activity {
     }
     private void sendEvent(JSONObject obj) { evaluate("window.ASPLAYER58_EVENT&&window.ASPLAYER58_EVENT("+obj+");"); }
     private void sendPosition(boolean ended) {
-        if(!playerVisible || player==null || isLive)return;
+        if(!playerVisible || player==null || isLive || playbackFailed || !playbackStarted)return;
         try {
             JSONObject e=new JSONObject();
             e.put("type","position");e.put("position",Math.max(0,mediaTime()));

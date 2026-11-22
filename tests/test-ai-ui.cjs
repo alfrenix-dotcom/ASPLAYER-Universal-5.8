@@ -31,6 +31,7 @@ const path=require('node:path');
   await page.locator('#search').fill('Find comedy');
   await page.waitForFunction(()=>document.querySelector('#ai-results button')&&document.querySelector('#ai-results').textContent.includes('AI suggestions'));
   assert.equal(await page.evaluate(()=>window.aiCalls.at(-1)[0]),'https://asplayer-ai.alfrenix.workers.dev/api/assistant');
+  assert.equal(await page.evaluate(()=>window.aiCalls.at(-1)[1].question),'Find comedy','Preserve original Worker 5.9.25 request contract');
   await page.evaluate(()=>{document.querySelector('#online-endpoint').value='https://example.workers.dev';document.querySelector('#save-online').click();});
   await page.locator('#search').press('Enter');await page.waitForFunction(()=>document.querySelector('#ai-results button')&&document.querySelector('#ai-results').textContent.includes('AI suggestions'));
   assert.deepEqual(await page.locator('#ai-results button').allTextContents(),['Family fun']);assert(!JSON.stringify(await page.evaluate(()=>window.aiCalls)).includes('secret-'));
