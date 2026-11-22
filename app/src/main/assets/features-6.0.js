@@ -54,7 +54,8 @@ asplayer6Style.textContent=`
  /* Catalog density: use viewport CSS pixels, not device type or physical DPI.
     Keep the two scroll regions and the existing remote focus targets. */
  body.asplayer-catalog-open #app-shell main{max-width:none;min-width:0}
- body.asplayer-catalog-open #app-shell .topbar{margin-bottom:7px;padding-block:7px;gap:6px}
+ body.asplayer-catalog-open #app-shell .topbar,
+ body.asplayer-catalog-open[data-glass-effective] #app-shell .topbar{margin-bottom:7px;padding-block:7px;gap:6px}
  body.asplayer-catalog-open #app-shell .topbar h1{font-size:clamp(22px,2.3vw,31px);line-height:1.12}
  body.asplayer-catalog-open #app-shell .topbar small{font-size:10px;letter-spacing:1.2px}
  body.asplayer-catalog-open #tv-catalog-layout{grid-template-columns:minmax(103px,34%) minmax(0,1fr);gap:7px}
@@ -80,7 +81,8 @@ asplayer6Style.textContent=`
  body.asplayer-catalog-open #cards .fav-tile{gap:5px}
  body.asplayer-catalog-open #cards .fav-star{flex:0 0 44px;min-width:44px;min-height:44px}
  @media(min-width:641px){
-  body.asplayer-catalog-open #app-shell main{padding-inline:10px;padding-top:calc(7px + var(--glass-top,0px))}
+  body.asplayer-catalog-open #app-shell main,
+  body.asplayer-catalog-open:not(.asplayer-tv-dpad)[data-glass-effective] #app-shell main{padding-inline:10px;padding-top:calc(7px + var(--glass-top,0px))}
   body.asplayer-catalog-open.asplayer-tv-dpad #app-shell main{padding-top:8px}
   body.asplayer-catalog-open #app-shell .sidebar{width:clamp(68px,7vw,104px);flex:0 0 clamp(68px,7vw,104px);padding:7px 5px;gap:4px}
   body.asplayer-catalog-open #app-shell .sidebar .brand{justify-content:center;margin:2px 0 7px}
@@ -100,7 +102,7 @@ asplayer6Style.textContent=`
   body.asplayer-catalog-open #tv-results-bar button{font-size:14px}
  }
  @media(max-width:640px){
-  body.asplayer-catalog-open:not(.asplayer-tv-dpad) #app-shell .topbar{padding-top:calc(6px + var(--glass-top,0px))}
+  body.asplayer-catalog-open:not(.asplayer-tv-dpad)[data-glass-effective] #app-shell .topbar{padding-top:calc(6px + var(--glass-top,0px))}
  }
  @media(min-width:1500px) and (min-height:850px){
   body.asplayer-catalog-open #cards.asplayer-paged{--pager-stride:82px;--pager-gap:6px}
@@ -113,7 +115,7 @@ asplayer6Style.textContent=`
  }
  @media(min-width:641px) and (max-height:500px){
   body.asplayer-catalog-open #app-shell .sidebar .nav{min-height:44px;padding:3px 2px;gap:1px}
-  body.asplayer-catalog-open #app-shell .topbar{padding-block:4px;margin-bottom:4px}
+  body.asplayer-catalog-open[data-glass-effective] #app-shell .topbar{padding-block:3px;margin-bottom:4px}
   body.asplayer-catalog-open #app-shell .topbar small{display:none}
   body.asplayer-catalog-open #cards.asplayer-paged{--pager-stride:62px;--pager-gap:4px}
   body.asplayer-catalog-open #cards .cover{flex-basis:43px;width:43px}
@@ -125,6 +127,8 @@ asplayer6Style.textContent=`
     either pane or the cards. */
  body.asplayer-catalog-open #categories button:focus-visible,
  body.asplayer-catalog-open #cards button:focus-visible{outline:2px solid #8df5ef;outline-offset:-3px}
+ body.asplayer-catalog-open #categories button.asplayer-593-focus:focus,
+ body.asplayer-catalog-open #cards button.asplayer-593-focus:focus{outline:3px solid #f8d873!important;outline-offset:-3px!important;box-shadow:0 0 0 2px #26dcf980!important}
 `;
 document.head.append(asplayer6Style);
 const asplayer6Back=window.ASPLAYER_BACK;
