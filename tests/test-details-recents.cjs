@@ -28,6 +28,7 @@ const path=require('node:path');
    await page.locator('[data-category="__asplayer_recent__"]').click();
    await page.waitForFunction(()=>filtered.length===3&&document.querySelector('#all-global-status').textContent.includes('300'));
    assert.deepEqual(await page.evaluate(()=>filtered.map(x=>x.stream_id)),['new','mid','old']);
+   if(tv){await page.locator('#search').focus();await page.keyboard.press('Enter');}
    await page.locator('#search').fill('Middle');await page.waitForFunction(()=>filtered.length===1);
    await page.evaluate(()=>{filter='';applyFilter();});
    await page.locator('#cards [data-item="0"]').click();

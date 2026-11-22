@@ -70,7 +70,8 @@ asplayer6Style.textContent=`
  body.asplayer-catalog-open #tv-results-bar button{min-height:44px;padding:5px 9px;font-size:13px}
  body.asplayer-catalog-open #cards.asplayer-paged{--pager-stride:70px;--pager-gap:5px;padding:3px}
  body.asplayer-catalog-open #cards .tile{padding:0;scroll-margin:5px;border-radius:10px;min-width:0}
- body.asplayer-catalog-open #cards.asplayer-paged .tile{min-height:0;height:100%}
+ body.asplayer-catalog-open #cards.asplayer-paged > .asplayer-page-row{min-height:0;height:calc(var(--pager-stride) - var(--pager-gap))}
+ body.asplayer-catalog-open #cards.asplayer-paged .fav-tile .tile{min-height:0;height:100%}
  body.asplayer-catalog-open #cards .cover{flex:0 0 47px;width:47px;height:100%;max-height:100%;border-radius:8px 0 0 8px}
  body.asplayer-catalog-open #cards .cover img{object-fit:contain}
  body.asplayer-catalog-open #cards .caption{padding:5px 7px;line-height:1.2;min-width:0}

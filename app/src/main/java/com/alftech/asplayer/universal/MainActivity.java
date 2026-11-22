@@ -225,6 +225,7 @@ public final class MainActivity extends Activity {
         // TV and native playback retain the original safe native bounds.
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             int left,top,right,bottom,imeBottom;
+            boolean wasKeyboardOpen=keyboardOpen;
             if (android.os.Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets safe = insets.getInsets(
                     android.view.WindowInsets.Type.systemBars()
@@ -245,6 +246,8 @@ public final class MainActivity extends Activity {
             safeTop=nativeBounds?0:top;
             safeBottom=nativeBounds||keyboardOpen?0:bottom;
             publishWebInsets();
+            if(wasKeyboardOpen&&!keyboardOpen&&!playerVisible)
+                evaluate("window.ASPLAYER_TEXT_KEYBOARD_CLOSED&&window.ASPLAYER_TEXT_KEYBOARD_CLOSED();");
             return insets;
         });
         setContentView(root);
@@ -1172,6 +1175,20 @@ public final class MainActivity extends Activity {
         }
         @JavascriptInterface public boolean isRemoteNavigation() {
             return isTvDevice()||browsingRemoteMode;
+        }
+        @JavascriptInterface public void showTextKeyboard() {
+            runOnUiThread(()->{
+                if(playerVisible||web==null||!(isTvDevice()||browsingRemoteMode))return;
+                android.view.inputmethod.InputMethodManager ime=(android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+                if(ime!=null){ime.restartInput(web);ime.showSoftInput(web,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);}
+            });
+        }
+        @JavascriptInterface public void hideTextKeyboard() {
+            runOnUiThread(()->{
+                if(web==null||!(isTvDevice()||browsingRemoteMode))return;
+                android.view.inputmethod.InputMethodManager ime=(android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+                if(ime!=null)ime.hideSoftInputFromWindow(web.getWindowToken(),0);
+            });
         }
 
         private final SessionVault sessionVault = new SessionVault(MainActivity.this);

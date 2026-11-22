@@ -29,6 +29,7 @@ document.head.appendChild(css);
 // Android TV and keyboard input use one focus controller.
 let remote = false, modal = null, opener = null, waitingEpisode = false;
 let locked = [], lastDpadAt = 0, lastTrigger = null, redirecting = false;
+let textLocked=null, textEditing=null;
 try { remote = bridge.isAndroidTv() === true; } catch (_) {}
 remote = remote || !!window.AndroidTVNavigation || /Android TV|Google TV|AFT[A-Z]/i.test(navigator.userAgent);
 const arrows = {ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
@@ -62,8 +63,39 @@ function visible(el){
 function choices(scope=document){
   return Array.from(scope.querySelectorAll(focusable)).filter(visible);
 }
+function isTextField(el){
+  return !!el?.matches('textarea,input:not([type]),input:is([type=text],[type=search],[type=password],[type=email],[type=url],[type=tel],[type=number])');
+}
+function armText(el){
+  if(!remote||!isTextField(el)||el===textEditing||el===textLocked||el.readOnly||el.disabled)return;
+  // A focused field is a navigation target, not an IME request.
+  textLocked=el;el.readOnly=true;
+}
+function releaseText(el){
+  if(el===textLocked){el.readOnly=false;textLocked=null;}
+}
+function beginText(el){
+  if(el!==textLocked)return false;
+  releaseText(el);textEditing=el;
+  el.focus({preventScroll:true});
+  try{bridge.showTextKeyboard?.();}catch(_){}
+  return true;
+}
+function endText(relock=true){
+  const el=textEditing;if(!el)return false;
+  textEditing=null;
+  if(relock&&document.activeElement===el)armText(el);
+  try{bridge.hideTextKeyboard?.();}catch(_){}
+  return true;
+}
+window.ASPLAYER_TEXT_KEYBOARD_CLOSED=()=>{if(textEditing)endText();};
 function focusElement(el){
   if(!visible(el))return false;
+  if(document.activeElement!==el&&textEditing)endText(false);
+  // Focusout releases the previous field; mark the new one before focus
+  // so Android never starts its keyboard merely because the D-pad arrived.
+  if(textLocked&&textLocked!==el)releaseText(textLocked);
+  armText(el);
   try{el.focus({preventScroll:true});}catch(_){el.focus();}
   if(document.activeElement!==el)return false;
   el.classList.add('asplayer-593-focus');
@@ -181,6 +213,14 @@ document.addEventListener('focusin',e=>{
     return;
   }
   if(e.target.matches?.(focusable))e.target.classList.add('asplayer-593-focus');
+  armText(e.target);
+},true);
+document.addEventListener('focusout',e=>{
+  if(e.target===textEditing)endText(false);
+  releaseText(e.target);
+},true);
+document.addEventListener('click',e=>{
+  if(remote&&e.detail>0&&e.target===textLocked)beginText(e.target);
 },true);
 function navigate(direction){
   // Never fall back to the document if an overlay is active, even at edges.
@@ -213,6 +253,7 @@ function navigate(direction){
 }
 function consume(e){e.preventDefault();e.stopImmediatePropagation();}
 document.addEventListener('keydown',e=>{
+  if(remote&&e.key==='Escape'&&textEditing){consume(e);endText();return;}
   if(remote&&!shownOverlay()&&catalogTabs.includes(active)&&
      ['Escape','Backspace'].includes(e.key)&&
      (cards.contains(document.activeElement)||resultBar.contains(document.activeElement))){
@@ -229,6 +270,14 @@ document.addEventListener('keydown',e=>{
   }
   enableRemote();
   const a=document.activeElement,tag=a?.tagName;
+  if(ok&&isTextField(a)){
+    if(a===textLocked){consume(e);if(!e.repeat)beginText(a);return;}
+    if(a===textEditing){
+      // Space remains a text character. Enter can submit search/PIN normally.
+      if(e.key!==' ')setTimeout(()=>{if(textEditing===a)endText();},0);
+      return;
+    }
+  }
   if(modal && (arrow||ok||e.key==='Tab'))waitingEpisode=false;
   if(e.key==='Tab'&&modal){
     consume(e);const list=choices(modal);
@@ -250,9 +299,9 @@ document.addEventListener('keydown',e=>{
   }
   const horizontal=e.key==='ArrowLeft'||e.key==='ArrowRight';
   // Allow native text editing, dropdown choices and timeline adjustment.
-  if(tag==='TEXTAREA'||a?.isContentEditable||
+  if((tag==='TEXTAREA'&&a===textEditing)||a?.isContentEditable||
      (tag==='SELECT'&&!horizontal)||
-     (tag==='INPUT'&&(/^(text|search|password|email|url|tel|number|range)$/.test(a.type))&&horizontal))return;
+     (tag==='INPUT'&&(a.type==='range'||a===textEditing)&&horizontal))return;
   consume(e);
   if(e.repeat&&Date.now()-lastDpadAt<90)return;
   lastDpadAt=Date.now();
@@ -459,6 +508,7 @@ loadCategories=async function(tab,force=false){
 };
 const oldBackTv=window.ASPLAYER_BACK;
 window.ASPLAYER_BACK=function(){
+  if(remote&&endText())return;
   if(remote&&!shownOverlay()&&catalogTabs.includes(active)&&
      (cards.contains(document.activeElement)||resultBar.contains(document.activeElement))){
     goCategories();return;
