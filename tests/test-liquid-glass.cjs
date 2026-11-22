@@ -1,7 +1,7 @@
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
-const {pathToFileURL}=require('node:url');
 const path=require('node:path');
+const fs=require('node:fs');
 
 (async()=>{
   const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{channel:'chrome'}),headless:true});
@@ -14,7 +14,13 @@ const path=require('node:path');
         window.glassNative=[];window.glassTransparency=[];
         window.ASPLAYER={isAndroidTv:()=>tv,supportsPremiumGlass:()=>capable,setGlassAppearance:m=>window.glassNative.push(m),setGlassTransparency:v=>window.glassTransparency.push(v)};
       },{tv,capable});
-      await page.goto(pathToFileURL(path.resolve('app/src/main/assets/index.html')).href);
+      // Give storage a stable origin. Desktop Chrome's file:// storage
+      // semantics differ from Android WebView and are not portable on reload.
+      await page.route('http://asplayer.test/**',route=>{
+        const file=path.join(path.resolve('app/src/main/assets'),new URL(route.request().url()).pathname);
+        return fs.existsSync(file)?route.fulfill({path:file}):route.abort();
+      });
+      await page.goto('http://asplayer.test/index.html');
       await page.evaluate(()=>{
         document.querySelector('#auth-screen').classList.add('hidden');
         document.querySelector('#app-shell').classList.remove('hidden');
@@ -60,7 +66,9 @@ const path=require('node:path');
     assert.equal(await mobile.locator('#glass-transparency').isDisabled(),true);
     assert.equal(await mobile.locator('.mobilebar').evaluate(el=>getComputedStyle(el).backdropFilter),'none');
     await mobile.locator('#glass-appearance').selectOption('premium');
+    await mobile.waitForFunction(()=>localStorage.getItem('asplayer:appearance:glass:v1')==='premium');
     await mobile.reload();
+    await mobile.waitForFunction(()=>document.body.dataset.glassMode==='premium');
     assert.equal(await mobile.locator('#glass-appearance').inputValue(),'premium');
     assert.equal(await mobile.locator('#glass-transparency').inputValue(),'100');
     await mobile.locator('#glass-reset').evaluate(el=>el.click());

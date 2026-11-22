@@ -146,7 +146,7 @@ function restoreScreenFocus(){
   const scope=auth&&!auth.classList.contains('hidden')?auth:shell;
   if(!scope)return;
   const current=document.activeElement;
-  if(scope.contains(current)&&visible(current))return;
+  if(scope.contains(current)&&visible(current)){armText(current);return;}
   const target=scope===auth?auth.querySelector('#access-pin'):
     scope.querySelector('.sidebar [data-nav].active');
   focusElement(target)||focusElement(choices(scope)[0]);
