@@ -240,7 +240,15 @@ const {pathToFileURL}=require('node:url');
     await page.evaluate(()=>{document.body.classList.remove('asplayer-home-open');document.body.classList.add('asplayer-settings-open');});
     assert((await page.locator('#app-shell .sidebar').boundingBox()).width<=110);
     await page.locator('#order-content').focus();
+    console.log('DEBUG SETTINGS BEFORE',JSON.stringify(await page.evaluate(()=>({
+      active,focus:document.activeElement.id,body:document.body.className,
+      settings:document.getElementById('view-settings').className,
+      controls:Array.from(document.querySelectorAll('#view-settings select,#view-settings input,#view-settings button'))
+        .slice(0,12).map(el=>({id:el.id,visible:el.getBoundingClientRect().width>3,tabIndex:el.tabIndex,disabled:el.disabled}))
+    }))));
+
     await page.keyboard.press('ArrowDown');
+    console.log('DEBUG SETTINGS AFTER',JSON.stringify(await page.evaluate(()=>({active,focus:document.activeElement.id,body:document.body.className}))));
     assert.equal(await page.evaluate(()=>document.activeElement.id),'epg-source','Down moves between selects, not their values');
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(()=>document.activeElement.id),'synopsis-source');
