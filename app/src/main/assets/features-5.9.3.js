@@ -105,8 +105,12 @@ function focusElement(el){
   try{el.focus({preventScroll:true});}catch(_){el.focus();}
   if(document.activeElement!==el)return false;
   el.classList.add('asplayer-593-focus');
-  const pane=remote&&document.body.classList.contains('asplayer-catalog-open')
-    ?el.closest('#categories,#tv-content-pane,.sidebar'):null;
+  // Scroll inside the active region; the dock never scrolls with main content.
+  const body=document.body;
+  const pane=!remote?null:body.classList.contains('asplayer-catalog-open')
+    ?el.closest('#categories,#tv-content-pane,.sidebar')
+    :body.classList.contains('asplayer-home-open')||body.classList.contains('asplayer-settings-open')
+      ?el.closest('.sidebar')||el.closest('#app-shell main'):null;
   if(pane)scrollInPane(el,pane,false);
   else el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'auto'});
   return true;
@@ -232,6 +236,67 @@ document.addEventListener('focusout',e=>{
 document.addEventListener('click',e=>{
   if(remote&&e.detail>0&&e.target===textLocked)beginText(e.target);
 },true);
+// Home and Settings are navigation policies inside the single D-pad controller.
+// Deliberately do not add an independent keydown listener or native focus handler.
+function settingsDirection(key){
+  if(!remote||modal||active!=='settings')return false;
+  const view=document.getElementById('view-settings');
+  if(!view||view.classList.contains('hidden'))return false;
+  const now=document.activeElement,dock=document.querySelector('.sidebar');
+  const items=choices(view);
+  if(dock?.contains(now)){
+    if(key==='ArrowRight'&&items.length){focusElement(items[0]);return true;}
+    return false;
+  }
+  if(!view.contains(now))return false;
+  const index=items.indexOf(now);
+  if(index<0){if(items[0])focusElement(items[0]);return true;}
+  if(key==='ArrowUp'||key==='ArrowDown'){
+    const next=items[index+(key==='ArrowDown'?1:-1)];
+    if(next)focusElement(next);
+    return true; // No accidental exit to dock at row/section boundaries.
+  }
+  const actions=now.closest('.actions');
+  if(actions&&view.contains(actions)){
+    const row=choices(actions),pos=row.indexOf(now);
+    const next=pos>=0?row[pos+(key==='ArrowRight'?1:-1)]:null;
+    if(next){focusElement(next);return true;}
+    if(key==='ArrowRight')return true;
+  }
+  if(key==='ArrowLeft')focusElement(dock?.querySelector('[data-nav="settings"]'));
+  return true; // Suppress geometry-based focus jumps inside Settings.
+}
+function homeDirection(key){
+  if(!remote||modal||active!=='home')return false;
+  const home=document.getElementById('view-home');
+  if(!home||home.classList.contains('hidden'))return false;
+  const now=document.activeElement,dock=document.querySelector('.sidebar');
+  const rows=[
+    [document.getElementById('asplayer-home-refresh')],
+    choices(document.getElementById('most-watched-channels')||home),
+    choices(document.getElementById('recent-posters')||home),
+    [document.getElementById('see-all-series')],
+    choices(document.getElementById('recent-series')||home)
+  ].map(row=>row.filter(visible)).filter(row=>row.length);
+  const first=rows[0]?.[0];
+  if(dock?.contains(now)){
+    if(key==='ArrowRight'&&first){focusElement(first);return true;}
+    return false;
+  }
+  if(!home.contains(now)&&now!==first)return false;
+  const at=rows.findIndex(row=>row.includes(now));
+  if(at<0){if(first)focusElement(first);return true;}
+  const row=rows[at],column=row.indexOf(now);
+  if(key==='ArrowLeft'||key==='ArrowRight'){
+    const next=row[column+(key==='ArrowRight'?1:-1)];
+    if(next)focusElement(next);
+    else if(key==='ArrowLeft')focusElement(dock?.querySelector('[data-nav="home"]'));
+    return true;
+  }
+  const nextRow=rows[at+(key==='ArrowDown'?1:-1)];
+  if(nextRow)focusElement(nextRow[Math.min(column,nextRow.length-1)]);
+  return true;
+}
 function navigate(direction){
   // Never fall back to the document if an overlay is active, even at edges.
   const available=choices(modal||document);
@@ -241,11 +306,6 @@ function navigate(direction){
     const next=direction==='ArrowRight'?current.nextElementSibling:current.previousElementSibling;
     if(next&&focusElement(next))return;
     if(direction==='ArrowRight')return;
-  }
-  if(!modal&&active==='settings'){
-    const settings=document.getElementById('view-settings'),dock=document.querySelector('.sidebar');
-    if(direction==='ArrowLeft'&&settings.contains(current)&&focusElement(dock.querySelector('[data-nav="settings"]')))return;
-    if(direction==='ArrowRight'&&dock.contains(current)&&focusElement(choices(settings)[0]))return;
   }
   if(!available.includes(current)){focusElement(preferred(modal||document))||focusElement(available[0]);return;}
   const r=current.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
@@ -311,15 +371,17 @@ document.addEventListener('keydown',e=>{
     if(input){consume(e);focusElement(input);return;}
   }
   const horizontal=e.key==='ArrowLeft'||e.key==='ArrowRight';
-  // Allow native text editing, dropdown choices and timeline adjustment.
+  // Settings dropdowns are vertically navigable; OK opens native picker.
+  const settingsSelect=remote&&!modal&&active==='settings'&&
+    document.getElementById('view-settings')?.contains(a);
   if((tag==='TEXTAREA'&&a===textEditing)||a?.isContentEditable||
-     (tag==='SELECT'&&!horizontal)||
+     (tag==='SELECT'&&!horizontal&&!settingsSelect)||
      (tag==='INPUT'&&a===textEditing)||
      (tag==='INPUT'&&a.type==='range'&&horizontal))return;
   consume(e);
   if(e.repeat&&Date.now()-lastDpadAt<90)return;
   lastDpadAt=Date.now();
-  if(!catalogDirection(e.key))navigate(e.key);
+  if(!settingsDirection(e.key)&&!homeDirection(e.key)&&!catalogDirection(e.key))navigate(e.key);
 },true);
 
 
@@ -591,7 +653,7 @@ vpnCheck.addEventListener('change',()=>{
   if(vpnCheck.checked)warpButton.click();
 });
 function localize(){
-  version.textContent='ASPLAYER Universal 6.0.3 · LibVLC 3.7.7 · Alftech Solutions';
+  version.textContent='ASPLAYER Universal 6.0.4 · LibVLC 3.7.7 · Alftech Solutions';
   heading.textContent=t('Imagen, rendimiento y conexión','Picture, performance and connection');
   sharpLabel.textContent=t('Mejora de nitidez (experimental)','Sharpness enhancement (experimental)');
   sharp.options[0].textContent=t('Normal (recomendado)','Normal (recommended)');
@@ -611,7 +673,7 @@ if(place)place.appendChild(panel);
 // Make the actual version visible on the existing About text as well.
 for(const el of document.querySelectorAll('#view-settings p')){
   if(el===version)continue;
-  if(/ASPLAYER Universal [56]\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 6.0.3 · LibVLC / Media3 · Alftech Solutions';
+  if(/ASPLAYER Universal [56]\.\d/.test(el.textContent||''))el.textContent='ASPLAYER Universal 6.0.4 · LibVLC / Media3 · Alftech Solutions';
 }
 if(typeof languageUI==='function'){
  const prior=languageUI;languageUI=function(){prior.apply(this,arguments);localize();};
