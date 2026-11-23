@@ -164,6 +164,14 @@ const {pathToFileURL}=require('node:url');
     assert.equal(await page.evaluate(()=>document.activeElement.dataset.category),'43');
     console.log('PASS: default All, vertical category and content lists, async category focus handoff, return to selected category');
     // Regression: category -> search must be a single arrow, without activating it.
+    const selectedBeforeBrowsing=await page.evaluate(()=>String(category));
+    await page.locator('#categories [data-category="42"]').focus();
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'search');
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.category),'42','Return to last highlighted, even unselected category');
+    assert.equal(await page.evaluate(()=>String(category)),selectedBeforeBrowsing,'Browsing never activates category');
+
     await page.locator('#categories [data-category="43"]').focus();
     const previouslySelected=await page.evaluate(()=>String(category));
     await page.keyboard.press('ArrowRight');
