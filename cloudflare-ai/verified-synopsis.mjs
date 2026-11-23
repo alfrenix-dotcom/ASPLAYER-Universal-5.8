@@ -78,7 +78,7 @@ async function lookupTMDB(title,category,year,language,token,fetcher){
 async function lookupWikipedia(title,category,year,language,fetcher){
  const lang=language==='es'?'es':'en';
  const u=new URL('https://'+lang+'.wikipedia.org/w/api.php');
- u.search=new URLSearchParams({action:'query',generator:'search',gsrsearch:title+' '+(category==='series'?'telenovela':'película'),gsrlimit:'8',gsrnamespace:'0',prop:'extracts',exintro:'1',explaintext:'1',format:'json',redirects:'1'}).toString();
+ u.search=new URLSearchParams({action:'query',generator:'search',gsrsearch:title+' '+(category==='series'?(lang==='es'?'telenovela':'television series'):(lang==='es'?'película':'film')),gsrlimit:'8',gsrnamespace:'0',prop:'extracts',exintro:'1',explaintext:'1',format:'json',redirects:'1'}).toString();
  const data=await fetchJSON(fetcher,u.href,145000);
  const pages=Object.values(data?.query?.pages||{});
  const catRe=category==='series'?/\b(telenovela|serie de television|television series|tv series|soap opera|television drama|drama televisivo|serie televisiva)\b/i:/\b(pelicula|film|movie|largometraje|feature film)\b/i;
