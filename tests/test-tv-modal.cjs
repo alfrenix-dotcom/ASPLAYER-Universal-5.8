@@ -163,6 +163,53 @@ const {pathToFileURL}=require('node:url');
     await page.evaluate(()=>window.ASPLAYER_BACK());
     assert.equal(await page.evaluate(()=>document.activeElement.dataset.category),'43');
     console.log('PASS: default All, vertical category and content lists, async category focus handoff, return to selected category');
+    // Regression: category -> search must be a single arrow, without activating it.
+    await page.locator('#categories [data-category="43"]').focus();
+    const previouslySelected=await page.evaluate(()=>String(category));
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'search');
+    assert.equal(await page.evaluate(()=>String(category)),previouslySelected,'D-pad must not trigger category selection');
+    assert.equal(await page.locator('#search').evaluate(el=>el.readOnly),true,'Search focus is not editing');
+    await page.keyboard.press('ArrowUp');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'refresh-cat','Refresh is reachable from search');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'search','Refresh returns to search');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#search').evaluate(el=>!el.readOnly&&document.activeElement===el),true,'Enter enables search editing');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#search').evaluate(el=>el.readOnly),true,'Back returns to navigation');
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.category),'43');
+    // Worker announcement is a real remote dialog: OK and Back both dismiss it.
+    await page.evaluate(()=>{document.getElementById('announcement-message').textContent='Worker test';document.getElementById('announcement').classList.remove('hidden');});
+    await page.waitForFunction(()=>document.activeElement.id==='dismiss-announcement');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(()=>document.getElementById('announcement').classList.contains('hidden'));
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.category),'43','Focus returns to the original category');
+    await page.evaluate(()=>document.getElementById('announcement').classList.remove('hidden'));
+    await page.waitForFunction(()=>document.activeElement.id==='dismiss-announcement');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>document.getElementById('announcement').classList.contains('hidden'));
+    // Settings: OK toggles checkbox, Enter enables PIN typing, arrows leave it.
+    await page.evaluate(()=>{
+      active='settings';
+      document.getElementById('view-catalog').classList.add('hidden');
+      document.getElementById('view-settings').classList.remove('hidden');
+      const cb=document.createElement('input');cb.id='tv-focus-checkbox-test';cb.type='checkbox';
+      document.getElementById('view-settings').appendChild(cb);
+    });
+    await page.locator('#tv-focus-checkbox-test').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#tv-focus-checkbox-test').isChecked(),true);
+    await page.locator('#parent-pin').focus();
+    assert.equal(await page.locator('#parent-pin').evaluate(el=>el.readOnly),true);
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#parent-pin').evaluate(el=>el.readOnly),false);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#parent-pin').evaluate(el=>el.readOnly),true);
+    await page.evaluate(()=>document.getElementById('tv-focus-checkbox-test').remove());
+    console.log('PASS: category-to-search without Enter, refresh, Worker OK/Back, checkbox and PIN editing');
+
     await page.evaluate(()=>{
       active='vod';category='none';filter='';operation++;
       cats=[{category_id:'1',category_name:'New releases'}];
