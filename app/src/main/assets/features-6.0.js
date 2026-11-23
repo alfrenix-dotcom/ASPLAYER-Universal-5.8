@@ -214,8 +214,13 @@ asplayer6Style.textContent=`
    font-size:clamp(16px,1.55vw,22px);line-height:1.2
  }
  body.asplayer-tv-dpad.asplayer-home-open #view-home .posters{
-   min-height:0;gap:8px;scroll-padding-inline:5px;padding:4px 5px 8px;
-   overscroll-behavior-x:contain
+   min-height:0;min-width:0;max-width:100%;gap:8px;padding:6px 12px 12px;
+   overflow-x:auto;overflow-y:hidden;
+   scroll-behavior:smooth;scroll-padding-inline:12px;
+   scroll-snap-type:x proximity;overscroll-behavior-x:contain
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .posters > button{
+   scroll-snap-align:start;scroll-margin-inline:12px;flex-shrink:0
  }
  body.asplayer-tv-dpad.asplayer-home-open #view-home .posters .poster{
    flex:0 0 clamp(110px,11vw,168px);border-radius:12px;min-width:0
