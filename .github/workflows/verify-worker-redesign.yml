@@ -1,0 +1,32 @@
+name: ASPLAYER Worker · Verified Synopsis and Branded Admin
+on:
+  push:
+    branches:
+      - development/worker-verified-synopses-notice-format
+    paths:
+      - 'cloudflare-ai/**'
+      - 'tests/test-online-ai.mjs'
+      - 'tests/test-notices.mjs'
+      - '.github/workflows/verify-worker-redesign.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check cloudflare-ai/worker.mjs
+          node --check cloudflare-ai/verified-synopsis.mjs
+          node --check cloudflare-ai/notices.mjs
+          node --check cloudflare-ai/notice-admin.mjs
+      - name: Verify legacy Worker 5.9.25-6.0.3 API and notices
+        run: |
+          node tests/test-online-ai.mjs
+          node tests/test-notices.mjs
