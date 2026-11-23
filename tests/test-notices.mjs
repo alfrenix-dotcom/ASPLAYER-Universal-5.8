@@ -10,7 +10,14 @@ const request=(path,opts={},bindings=env)=>worker.fetch(new Request('https://exa
 const admin=(path,data,auth=token,method=data===undefined?'GET':'POST')=>request('/api/admin/notices'+path,{method,headers:{Authorization:'Bearer '+auth,'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)})});
 const get=async(lang='es')=>(await (await request('/api/announcements?lang='+lang)).json());
 assert.equal((await get()).announcement.id,'legacy');
-const page=await request('/admin');assert.equal(page.status,200);assert.match(page.headers.get('Content-Security-Policy'),/frame-ancestors 'none'/);assert.match(await page.text(),/Centro de avisos/);
+const page=await request('/admin');assert.equal(page.status,200);assert.match(page.headers.get('Content-Security-Policy'),/frame-ancestors 'none'/);const panelHTML=await page.text();
+assert.match(panelHTML,/ALFTECH SOLUTIONS/);
+assert.match(panelHTML,/brand-logo\.jpg/);
+assert.match(panelHTML,/Plantilla de comunicado/);
+assert.match(panelHTML,/Sinopsis inteligentes en español e inglés/);
+assert.match(panelHTML,/Vencimiento \(hora local\)/);
+assert.match(panelHTML,/ASPLAYER 5\.9\.25/);
+assert.match(panelHTML,/Centro administrativo/);
 assert.equal((await request('/api/admin/notices')).status,401);
 assert.equal((await admin('',{es:'x',en:'x'},'wrong')).status,401);
 assert.equal((await request('/api/admin/notices',{}, {...env,NOTICE_ADMIN_TOKEN:undefined})).status,503);
