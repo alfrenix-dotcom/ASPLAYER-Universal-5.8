@@ -114,7 +114,28 @@ function focusElement(el){
         ?el.closest('#categories,#tv-content-pane,.sidebar'):null;
   if(pane)scrollInPane(el,pane,false);
   else el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'auto'});
+  // The main scroll pane only controls Y. Home's movie, series and watched
+  // channels are independent X carousels; focusing an offscreen tile must
+  // scroll its own rail rather than moving the entire Home viewport.
+  if(remote&&active==='home')scrollHomeCarousel(el);
   return true;
+}
+function scrollHomeCarousel(el){
+  const rail=el?.closest('#most-watched-channels,#recent-posters,#recent-series');
+  if(!rail||rail.scrollWidth<=rail.clientWidth+2)return;
+  const viewport=rail.getBoundingClientRect(),item=el.getBoundingClientRect();
+  const margin=12, max=Math.max(0,rail.scrollWidth-rail.clientWidth);
+  // Convert the current tile rect back into a stable content coordinate. It
+  // remains correct if the user presses Right again mid-scroll animation.
+  const left=rail.scrollLeft+item.left-viewport.left;
+  const right=left+item.width;
+  let target=rail.scrollLeft;
+  if(left<target+margin)target=left-margin;
+  else if(right>target+rail.clientWidth-margin)target=right-rail.clientWidth+margin;
+  target=Math.max(0,Math.min(max,target));
+  if(Math.abs(target-rail.scrollLeft)>1){
+    rail.scrollTo({left:target,behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+  }
 }
 function scrollInPane(el,pane,alignTop){
   if(!el||!pane)return;
