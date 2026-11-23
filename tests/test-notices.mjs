@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import worker,{NoticeStore} from '../cloudflare-ai/worker.mjs';
 
 let rows,allowed=true,aiCalls=0;
@@ -18,6 +19,13 @@ assert.match(panelHTML,/Sinopsis inteligentes en español e inglés/);
 assert.match(panelHTML,/Vencimiento \(hora local\)/);
 assert.match(panelHTML,/ASPLAYER 5\.9\.25/);
 assert.match(panelHTML,/Centro administrativo/);
+assert.match(panelHTML,/service-health/);
+assert.match(panelHTML,/company@alftechsolutions\.com/);
+assert.match(panelHTML,/WhatsApp \+1 236-702-1555/);
+assert.match(page.headers.get('Content-Security-Policy'),/img-src https:\/\/raw\.githubusercontent\.com/);
+const inlineScript=panelHTML.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)?.[1];
+assert(inlineScript,'Branded admin script must exist');
+new vm.Script(inlineScript,{filename:'worker-admin-inline.js'});
 assert.equal((await request('/api/admin/notices')).status,401);
 assert.equal((await admin('',{es:'x',en:'x'},'wrong')).status,401);
 assert.equal((await request('/api/admin/notices',{}, {...env,NOTICE_ADMIN_TOKEN:undefined})).status,503);
