@@ -207,7 +207,12 @@ const {pathToFileURL}=require('node:url');
     assert.equal(await page.locator('#parent-pin').evaluate(el=>el.readOnly),false);
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('#parent-pin').evaluate(el=>el.readOnly),true);
-    await page.evaluate(()=>document.getElementById('tv-focus-checkbox-test').remove());
+    await page.evaluate(()=>{
+      document.getElementById('tv-focus-checkbox-test').remove();
+      document.getElementById('view-settings').classList.add('hidden');
+      document.getElementById('view-catalog').classList.remove('hidden');
+      active='vod';
+    });
     console.log('PASS: category-to-search without Enter, refresh, Worker OK/Back, checkbox and PIN editing');
 
     await page.evaluate(()=>{
