@@ -57,4 +57,6 @@ assert.equal((await ask('/api/assistant')).status,405);
 assert.equal((await ask('/unknown')).status,404);
 assert.equal((await ask('/api/assistant',{question:'x'.repeat(25000)})).status,413);
 assert.equal(cleanWorkTitle('Sabor a ti LAT'),'Sabor a ti');
+assert.equal(cleanWorkTitle('Sabor a ti (2026) LAT'),'Sabor a ti');
+assert.equal(cleanWorkTitle('Breaking Bad [HD]'),'Breaking Bad');
 console.log('PASS: legacy Worker routes, source-backed ES synopsis, no guessing, privacy, quota and fallback');
