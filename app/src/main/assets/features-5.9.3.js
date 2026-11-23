@@ -29,12 +29,12 @@ document.head.appendChild(css);
 // Android TV and keyboard input use one focus controller.
 let remote = false, modal = null, opener = null, waitingEpisode = false;
 let locked = [], lastDpadAt = 0, lastTrigger = null, redirecting = false;
-let textLocked=null, textEditing=null;
+let textLocked=null, textEditing=null, enteringText=false;
 let pendingCategory=null;
 try { remote = bridge.isAndroidTv() === true; } catch (_) {}
 remote = remote || !!window.AndroidTVNavigation || /Android TV|Google TV|AFT[A-Z]/i.test(navigator.userAgent);
 const arrows = {ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
-const overlaySelector = '.modal:not(.hidden),.playeroverlay:not(.hidden)';
+const overlaySelector = '.modal:not(.hidden),.playeroverlay:not(.hidden),#announcement:not(.hidden)';
 const tvStyle = document.createElement('style');
 tvStyle.textContent = `
   body.asplayer-tv-dialog {overflow:hidden!important}
@@ -49,6 +49,7 @@ tvStyle.textContent = `
   body.asplayer-tv-dpad #episodes .episode {
     display:block;width:100%;min-height:58px;text-align:left;margin:8px 0;
   }
+  body.asplayer-tv-dpad #dismiss-announcement{min-width:58px;min-height:58px;flex-shrink:0}
   body.asplayer-tv-dpad .modal button:focus {
     outline:4px solid #ffe189!important;outline-offset:4px!important;
     box-shadow:0 0 0 3px #102c4d,0 0 22px #5de8ffaa!important;
@@ -77,8 +78,12 @@ function releaseText(el){
 }
 function beginText(el){
   if(el!==textLocked)return false;
-  releaseText(el);textEditing=el;
-  el.focus({preventScroll:true});
+  releaseText(el);textEditing=el;enteringText=true;
+  // Android WebView requires a fresh editable focus to activate its InputConnection.
+  try{if(document.activeElement===el)el.blur();el.focus({preventScroll:true});}
+  catch(_){el.focus();}
+  finally{enteringText=false;}
+  if(document.activeElement!==el){textEditing=null;return false;}
   try{bridge.showTextKeyboard?.();}catch(_){}
   return true;
 }
@@ -136,6 +141,7 @@ function preferred(scope){
   if(scope.id==='details-modal')
     return scope.querySelector('#season-select,#detail-actions button:not(:disabled),#episodes button[data-episode]:not(:disabled)')||scope.querySelector('#detail-close');
   if(scope.id==='parent-modal')return scope.querySelector('#unlock-pin');
+  if(scope.id==='announcement')return scope.querySelector('#dismiss-announcement');
   if(scope.id==='player-choice')return scope.querySelector('#choose-modern');
   if(scope.id==='modern-player')return scope.querySelector('#player-toggle');
   return choices(scope)[0];
@@ -159,7 +165,7 @@ function syncScope(){
   if(next!==modal){
     const prev=modal;
     unlockBackground();
-    if(prev)prev.removeAttribute('aria-modal');
+    if(prev){prev.removeAttribute('aria-modal');if(prev.id==='announcement'){prev.setAttribute('role','status');prev.removeAttribute('aria-labelledby');}}
     if(next&&!prev){
       const focused=document.activeElement;
       opener=focused && focused!==document.body && !next.contains(focused)?focused:lastTrigger;
@@ -167,10 +173,11 @@ function syncScope(){
     modal=next; waitingEpisode=false;
     document.body.classList.toggle('asplayer-tv-dialog',!!modal);
     if(modal){
-      if(modal.matches('.modal')){
+      if(modal.matches('.modal')||modal.id==='announcement'){
         modal.setAttribute('role','dialog');
         modal.setAttribute('aria-modal','true');
         if(modal.id==='details-modal')modal.setAttribute('aria-labelledby','detail-title');
+        if(modal.id==='announcement')modal.setAttribute('aria-labelledby','announcement-message');
       }
       lockBackground(modal);
       const target=preferred(modal);
@@ -197,7 +204,7 @@ if(remote)enableRemote();
 // Observe screen transitions and overlay state/content, not focus styling.
 const observer=new MutationObserver(records=>{
   if(!remote)return;
-  if(records.some(r=>r.type==='attributes'&&r.target.matches('.modal,.playeroverlay,#auth-screen,#app-shell,#view-home,#view-catalog,#view-settings') ||
+  if(records.some(r=>r.type==='attributes'&&r.target.matches('.modal,.playeroverlay,#announcement,#auth-screen,#app-shell,#view-home,#view-catalog,#view-settings') ||
       r.type==='childList'&&r.target.closest('.modal,.playeroverlay')))syncScope();
 });
 observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
@@ -218,7 +225,7 @@ document.addEventListener('focusin',e=>{
   armText(e.target);
 },true);
 document.addEventListener('focusout',e=>{
-  if(e.target===textEditing)endText(false);
+  if(!enteringText&&e.target===textEditing)endText(false);
   releaseText(e.target);
 },true);
 document.addEventListener('click',e=>{
@@ -256,6 +263,9 @@ function navigate(direction){
 function consume(e){e.preventDefault();e.stopImmediatePropagation();}
 document.addEventListener('keydown',e=>{
   if(remote&&e.key==='Escape'&&textEditing){consume(e);endText();return;}
+  if(remote&&['Escape','Backspace'].includes(e.key)&&shownOverlay()?.id==='announcement'){
+    consume(e);document.getElementById('dismiss-announcement')?.click();return;
+  }
   if(remote&&!shownOverlay()&&catalogTabs.includes(active)&&
      ['Escape','Backspace'].includes(e.key)&&
      (cards.contains(document.activeElement)||resultBar.contains(document.activeElement))){
@@ -286,7 +296,7 @@ document.addEventListener('keydown',e=>{
     if(list.length)focusElement(list[(list.indexOf(a)+(e.shiftKey?-1:1)+list.length)%list.length]);
     return;
   }
-  if(ok&&a?.matches('button,input[type="button"],input[type="submit"],a[href]')){
+  if(ok&&a?.matches('button,input[type="button"],input[type="submit"],input[type="checkbox"],input[type="radio"],a[href]')){
     consume(e);if(!e.repeat)a.click();return;
   }
   if(!arrow)return;
@@ -303,7 +313,8 @@ document.addEventListener('keydown',e=>{
   // Allow native text editing, dropdown choices and timeline adjustment.
   if((tag==='TEXTAREA'&&a===textEditing)||a?.isContentEditable||
      (tag==='SELECT'&&!horizontal)||
-     (tag==='INPUT'&&(a.type==='range'||a===textEditing)&&horizontal))return;
+     (tag==='INPUT'&&a===textEditing)||
+     (tag==='INPUT'&&a.type==='range'&&horizontal))return;
   consume(e);
   if(e.repeat&&Date.now()-lastDpadAt<90)return;
   lastDpadAt=Date.now();
@@ -511,6 +522,9 @@ loadCategories=async function(tab,force=false){
 const oldBackTv=window.ASPLAYER_BACK;
 window.ASPLAYER_BACK=function(){
   if(remote&&endText())return;
+  if(document.getElementById('announcement')?.classList.contains('hidden')===false){
+    document.getElementById('dismiss-announcement')?.click();return;
+  }
   if(remote&&!shownOverlay()&&catalogTabs.includes(active)&&
      (cards.contains(document.activeElement)||resultBar.contains(document.activeElement))){
     goCategories();return;
