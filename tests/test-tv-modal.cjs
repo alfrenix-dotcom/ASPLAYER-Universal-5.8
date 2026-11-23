@@ -111,6 +111,41 @@ const {pathToFileURL}=require('node:url');
     await page.keyboard.press('ArrowRight');
     assert.equal(await page.evaluate(()=>document.activeElement.id),'asplayer-home-refresh');
     console.log('PASS: responsive Home header, vertical rows, horizontal channels, dock at deliberate boundary only');
+    // Regression: all three real Home rails must follow 20 D-pad selections.
+    // Prior bug: main scrolled vertically, but movies/series X scroll stayed 0.
+    await page.evaluate(()=>{
+      for(const rail of ['recent-posters','recent-series']){
+        const parent=document.getElementById(rail);
+        parent.replaceChildren();
+        for(let i=0;i<20;i++){
+          const b=document.createElement('button');
+          b.type='button';b.className='poster';
+          b.textContent=rail+' '+(i+1);b.dataset.carouselPosition=String(i);
+          parent.append(b);
+        }
+      }
+    });
+    for(const id of ['most-watched-channels','recent-posters','recent-series']){
+      const rail=page.locator('#'+id);
+      assert.equal(await rail.locator('button').count(),20,'Expected full 20 '+id+' cards');
+      await rail.evaluate(el=>{el.scrollLeft=0});
+      await rail.locator('button').first().focus();
+      for(let i=1;i<20;i++)await page.keyboard.press('ArrowRight');
+      assert.equal(await rail.evaluate(el=>document.activeElement===el.lastElementChild),true,'D-pad must reach 20th '+id+' item');
+      await page.waitForFunction(id=>{
+        const el=document.getElementById(id),tile=el.lastElementChild;
+        if(!el||!tile)return false;
+        const panel=el.getBoundingClientRect(),card=tile.getBoundingClientRect();
+        return el.scrollLeft>0&&card.right<=panel.right+2&&card.left>=panel.left-2;
+      },id,{timeout:10000});
+      assert(await rail.evaluate(el=>el.scrollLeft>0),'Carousel did not scroll right '+id);
+      for(let i=1;i<20;i++)await page.keyboard.press('ArrowLeft');
+      assert.equal(await rail.evaluate(el=>document.activeElement===el.firstElementChild),true,'D-pad returns to first '+id);
+      await page.waitForFunction(id=>document.getElementById(id).scrollLeft<5,id,{timeout:10000});
+    }
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'Home carousels must not overflow entire viewport horizontally');
+    console.log('PASS: 20/20 cards visible by D-pad in movies, series and most watched carousels, both directions');
+
     await page.evaluate(()=>document.body.classList.remove('asplayer-home-open'));
 
     await page.evaluate(()=>{store(HISTORY_KEY,{});window.ASPLAYER_REFRESH_WATCH()});
