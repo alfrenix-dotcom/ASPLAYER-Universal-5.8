@@ -443,17 +443,37 @@ function catalogDirection(key){
   const categories=Array.from(categoryList.querySelectorAll('button[data-category]')).filter(visible);
   const titles=Array.from(cards.querySelectorAll('button[data-item]')).filter(visible);
   const pager=window.ASPLAYER_PAGER;
+  const search=document.getElementById('search'),refresh=document.getElementById('refresh-cat');
   const currentCategory=selectedCategoryButton()||categories[0];
-  if(a.closest('.sidebar')&&key==='ArrowRight'){focusElement(currentCategory);return true;}
-  if(categoryList.contains(a)){
-    if(key==='ArrowRight'){focusElement(pager?.active()?pager.at(0):titles[0]||backCats);return true;}
-    if(key==='ArrowLeft'){
-      focusElement(document.querySelector('.sidebar [data-nav="'+active+'"]'));return true;
-    }
-    const n=categories.indexOf(a)+(key==='ArrowUp'?-1:1);
-    if(categories[n])focusElement(categories[n]);return true;
+  const firstResult=()=>pager?.active()?pager.at(0):titles[0];
+  // D-pad focus does NOT activate categories. Only OK/Enter selects them.
+  if(a.closest('.sidebar')&&key==='ArrowRight'){
+    focusElement(currentCategory||search);return true;
   }
-  if(a===backCats&&key==='ArrowDown'){focusElement(pager?.active()?pager.at(0):titles[0]);return true;}
+  if(a===refresh){
+    if(key==='ArrowDown'||key==='ArrowRight'){focusElement(search);return true;}
+    if(key==='ArrowLeft'){focusElement(currentCategory);return true;}
+  }
+  if(a===search){
+    if(a===textEditing)return false;
+    if(key==='ArrowLeft'){focusElement(currentCategory);return true;}
+    if(key==='ArrowUp'){focusElement(refresh);return true;}
+    if(key==='ArrowDown'||key==='ArrowRight'){focusElement(firstResult()||backCats);return true;}
+  }
+  if(categoryList.contains(a)){
+    if(key==='ArrowRight'){focusElement(search)||focusElement(firstResult()||backCats);return true;}
+    if(key==='ArrowLeft'){focusElement(document.querySelector('.sidebar [data-nav="'+active+'"]'));return true;}
+    const n=categories.indexOf(a)+(key==='ArrowUp'?-1:1);
+    if(categories[n])focusElement(categories[n]);
+    else if(key==='ArrowUp')focusElement(refresh);
+    else focusElement(search);
+    return true;
+  }
+  if(a===backCats){
+    if(key==='ArrowUp'){focusElement(search);return true;}
+    if(key==='ArrowLeft'){focusElement(currentCategory);return true;}
+    if(key==='ArrowDown'||key==='ArrowRight'){focusElement(firstResult());return true;}
+  }
   if(cards.contains(a)){
     const tile=a.closest('.fav-tile')?.querySelector('button[data-item]')||a.closest('button[data-item]');
     if(!tile)return false;
