@@ -107,10 +107,11 @@ function focusElement(el){
   el.classList.add('asplayer-593-focus');
   // Scroll inside the active region; the dock never scrolls with main content.
   const body=document.body;
-  const pane=!remote?null:body.classList.contains('asplayer-catalog-open')
-    ?el.closest('#categories,#tv-content-pane,.sidebar')
-    :body.classList.contains('asplayer-home-open')||body.classList.contains('asplayer-settings-open')
-      ?el.closest('.sidebar')||el.closest('#app-shell main'):null;
+  const pane=!remote?null:
+    body.classList.contains('asplayer-home-open')||body.classList.contains('asplayer-settings-open')
+      ?el.closest('.sidebar')||el.closest('#app-shell main')
+      :body.classList.contains('asplayer-catalog-open')
+        ?el.closest('#categories,#tv-content-pane,.sidebar'):null;
   if(pane)scrollInPane(el,pane,false);
   else el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'auto'});
   return true;
