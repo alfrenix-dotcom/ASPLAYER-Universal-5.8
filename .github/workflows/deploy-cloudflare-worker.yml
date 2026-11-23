@@ -1,0 +1,64 @@
+name: Publish ASPLAYER Cloudflare Worker (authenticated)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - development/6.0-smart
+    paths:
+      - '.github/workflows/deploy-cloudflare-worker.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asplayer-cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  publish-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout verified ASPLAYER Worker
+        uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Worker modules and compatibility
+        run: |
+          set -euo pipefail
+          node --check cloudflare-ai/notice-admin.mjs
+          node --check cloudflare-ai/notices.mjs
+          node --check cloudflare-ai/verified-synopsis.mjs
+          node --check cloudflare-ai/worker.mjs
+          node tests/test-online-ai.mjs
+          node tests/test-notices.mjs
+      - name: Check saved Cloudflare deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "::error::Cloudflare deployment is not connected. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as repository Actions secrets, then rerun this workflow. No production changes were made."
+            exit 1
+          fi
+      - name: Deploy to the existing asplayer-ai Worker
+        working-directory: cloudflare-ai
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config wrangler.jsonc
+      - name: Verify production admin and legacy API contract
+        run: |
+          set -euo pipefail
+          root="https://asplayer-ai.alfrenix.workers.dev"
+          curl --fail --silent --show-error --max-time 20 "$root/admin" > /tmp/asplayer-worker-admin.html
+          grep -Fq 'Inteligencia y comunicaciones' /tmp/asplayer-worker-admin.html
+          grep -Fq 'ALFTECH SOLUTIONS' /tmp/asplayer-worker-admin.html
+          curl --fail --silent --show-error --max-time 15 "$root/" | jq -e '.service == "ASPLAYER AI" and .version == 4'
+          curl --fail --silent --show-error --max-time 15 "$root/api/announcements?lang=es" | jq -e 'has("announcement") and (.announcements | type == "array")'
+          echo "ALFTECH Worker Control deployed and verified. App 5.9.25-6.0.3 contract remains unchanged."
