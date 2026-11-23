@@ -132,8 +132,225 @@ asplayer6Style.textContent=`
  body.asplayer-catalog-open #cards button:focus-visible{outline:2px solid #8df5ef;outline-offset:-3px}
  body.asplayer-catalog-open #categories button.asplayer-593-focus:focus,
  body.asplayer-catalog-open #cards button.asplayer-593-focus:focus{outline:3px solid #f8d873!important;outline-offset:-3px!important;box-shadow:0 0 0 2px #26dcf980!important}
+
+ /* 6.0.4: the Home viewport follows the same adaptive geometry as catalogs.
+    Settings keeps a single focus path and an independent scroll container. */
+ .asplayer-home-tools{display:none;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+ .asplayer-home-refresh{display:none}
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell{
+   height:100vh;height:100dvh;min-height:0;overflow:hidden
+ }
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .sidebar{
+   width:clamp(68px,7vw,104px);flex:0 0 clamp(68px,7vw,104px);
+   height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+   padding:7px 5px;gap:4px
+ }
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .sidebar .brand{
+   justify-content:center;margin:2px 0 7px
+ }
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .sidebar .brand-text{display:none}
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .sidebar .nav{
+   display:flex;flex-direction:column;align-items:center;justify-content:center;
+   text-align:center;gap:3px;min-height:50px;padding:5px 2px
+ }
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .sidebar .navico{
+   margin:0;font-size:21px
+ }
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .sidebar .navlabel{
+   display:block;font-size:10px;line-height:1.1;white-space:normal
+ }
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell main{
+   flex:1;min-width:0;min-height:0;height:100%;max-width:none;margin:0;
+   overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+   scroll-padding-block:14px;padding:8px clamp(8px,1.3vw,24px) 22px
+ }
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .topbar{
+   margin-bottom:9px;padding:7px 12px;border:1px solid #5b9ec4;
+   border-radius:17px;background:linear-gradient(110deg,#193154,#155788);
+   min-height:58px;flex-wrap:nowrap;gap:10px
+ }
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .topbar h1{
+   font-size:clamp(19px,2.3vw,31px);line-height:1.1
+ }
+ body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .topbar small{
+   font-size:10px;letter-spacing:1px
+ }
+ body.asplayer-tv-dpad.asplayer-home-open .asplayer-home-tools{display:flex}
+ body.asplayer-tv-dpad.asplayer-home-open .asplayer-home-refresh{display:block;min-height:44px;padding:8px 13px}
+ body.asplayer-tv-dpad.asplayer-home-open #refresh-home{display:none}
+ body.asplayer-tv-dpad.asplayer-home-open #view-home{min-width:0;padding-bottom:14px}
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .account-summary{
+   padding:8px 13px;margin:0 0 9px;gap:8px;min-height:38px;
+   border-color:#426a8d
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .account-summary span{
+   font-size:11px;padding:3px 7px
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .hero{
+   min-height:0;padding:12px clamp(12px,2vw,24px);margin:0 0 13px;
+   border:1px solid #508bb4;border-radius:15px;
+   background:linear-gradient(110deg,#241c48,#174b74)
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .hero h2{
+   font-size:clamp(19px,2.5vw,33px);line-height:1.12;margin:0 0 6px
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .hero p{
+   font-size:clamp(11px,1.15vw,14px);line-height:1.3;margin:0 0 6px
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .hero .eyebrow{font-size:10px}
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .hero-logo{
+   float:right;width:clamp(56px,10vw,118px);max-height:105px;margin:0 0 0 10px
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .hero .chips{
+   margin:5px 0 0;gap:5px
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .hero .chip{
+   font-size:10px;padding:4px 9px
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .sectionhead{
+   margin:12px 0 6px;gap:6px
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .sectionhead h2{
+   font-size:clamp(16px,1.55vw,22px);line-height:1.2
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .posters{
+   min-height:0;gap:8px;scroll-padding-inline:5px;padding:4px 5px 8px;
+   overscroll-behavior-x:contain
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .posters .poster{
+   flex:0 0 clamp(110px,11vw,168px);border-radius:12px;min-width:0
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .posters .poster img{
+   object-fit:contain;max-width:100%
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #most-watched-channels .most-watched-channel{
+   flex:0 0 clamp(146px,18vw,225px);min-height:0
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #most-watched-channels .channel-logo-frame{
+   aspect-ratio:16/7
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #most-watched-channels .most-watched-channel strong{
+   min-height:0;padding:7px 9px;font-size:clamp(11px,1.05vw,15px)
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .contact-priority{
+   margin:16px 0 5px!important;padding:10px 14px!important;
+   border-radius:12px;gap:5px 12px!important
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .contact-priority strong{
+   font-size:13px
+ }
+ body.asplayer-tv-dpad.asplayer-home-open #view-home .contact-priority .contact-info{
+   font-size:12px
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings{
+   max-width:1100px;margin:0 auto
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .sectionhead{
+   margin:5px 0 10px
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .settings-grid{
+   display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+   gap:10px
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .settings-grid>.setting{
+   min-width:0;width:100%;padding:clamp(13px,1.7vw,22px);
+   border:1px solid #456787;border-radius:15px;
+   background:linear-gradient(130deg,#142440,#111c35)
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .setting:focus-within{
+   border-color:#59deda;background:linear-gradient(130deg,#183250,#102c45)
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .setting h3{
+   font-size:clamp(16px,1.5vw,21px);line-height:1.25;
+   margin:0 0 6px;color:#d8f4ff
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .setting p{
+   margin:5px 0 9px
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .setting :is(button,select,input,a[href]){
+   min-height:46px;scroll-margin:15px
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .setting :is(select,input:not([type=checkbox]):not([type=radio])){
+   width:min(100%,40rem);max-width:100%
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .setting .actions{
+   display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .setting .actions>button{
+   flex:0 1 auto;min-width:min(160px,100%);min-height:48px
+ }
+ body.asplayer-tv-dpad.asplayer-settings-open #view-settings .setting label:has(:focus-visible){
+   border-radius:8px;outline:2px solid #f8d873;outline-offset:3px
+ }
+ @media(min-width:1500px) and (min-height:850px){
+   body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .sidebar .nav{min-height:62px}
+   body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .sidebar .navlabel{font-size:12px}
+   body.asplayer-tv-dpad.asplayer-home-open #view-home .posters .poster{flex-basis:clamp(160px,12vw,235px)}
+   body.asplayer-tv-dpad.asplayer-home-open #most-watched-channels .most-watched-channel{flex-basis:clamp(190px,19vw,290px)}
+ }
+ @media(min-width:641px) and (max-height:500px){
+   body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .sidebar .nav{min-height:43px;padding:3px 2px;gap:1px}
+   body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .topbar{padding-block:4px;min-height:49px;margin-bottom:6px}
+   body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell .topbar small{display:none}
+   body.asplayer-tv-dpad.asplayer-home-open #view-home .hero{padding:8px 13px;margin-bottom:7px}
+   body.asplayer-tv-dpad.asplayer-home-open #view-home .hero-logo{width:64px;max-height:60px}
+   body.asplayer-tv-dpad.asplayer-home-open #view-home .sectionhead{margin:9px 0 4px}
+   body.asplayer-tv-dpad.asplayer-home-open #most-watched-channels .channel-logo-frame{aspect-ratio:16/6}
+   body.asplayer-tv-dpad.asplayer-settings-open #view-settings .settings-grid{gap:7px}
+ }
+ /* Phone landscape/tablet remain touch-first and scale card widths. */
+ @media(min-width:641px){
+   body.asplayer-home-open:not(.asplayer-tv-dpad) #view-home .posters .poster{
+     flex-basis:clamp(135px,16vw,210px)
+   }
+ }
+ @media(max-width:640px){
+   body.asplayer-home-open:not(.asplayer-tv-dpad) #view-home .hero{
+     padding:18px 15px;border-radius:14px
+   }
+   body.asplayer-home-open:not(.asplayer-tv-dpad) #view-home .account-summary{
+     gap:6px;margin-bottom:10px
+   }
+ }
+
 `;
 document.head.append(asplayer6Style);
+
+/* Home's compact refresh is part of the header, not the movie section.
+   Reuse the existing refresh handler, do not duplicate network logic. */
+const asplayerHome=document.getElementById('view-home');
+const asplayerContact=asplayerHome?.querySelector('.contact-priority');
+if(asplayerHome&&asplayerContact)asplayerHome.append(asplayerContact);
+const asplayerTopbar=document.querySelector('#app-shell .topbar');
+if(asplayerTopbar&&!document.getElementById('asplayer-home-refresh')){
+  const tools=document.createElement('div');tools.className='asplayer-home-tools';
+  const pill=asplayerTopbar.querySelector('.pill');
+  if(pill)tools.append(pill);
+  const refresh=document.createElement('button');
+  refresh.type='button';refresh.id='asplayer-home-refresh';
+  refresh.className='ghost asplayer-home-refresh';refresh.dataset.i18n='refresh';
+  refresh.textContent=tr('refresh');
+  refresh.addEventListener('click',()=>document.getElementById('refresh-home')?.click());
+  tools.append(refresh);asplayerTopbar.append(tools);
+}
+// Body modes reflect the visible tab, not window dimensions.  This preserves
+// phone touch behavior while giving each TV screen its own viewport layout.
+function asplayerUpdateViewportMode(){
+  const shell=document.getElementById('app-shell');
+  const ready=shell&&!shell.classList.contains('hidden');
+  const home=ready&&!document.getElementById('view-home').classList.contains('hidden');
+  const settings=ready&&!document.getElementById('view-settings').classList.contains('hidden');
+  document.body.classList.toggle('asplayer-home-open',Boolean(home));
+  document.body.classList.toggle('asplayer-settings-open',Boolean(settings));
+}
+const asplayerShowTab6=showTab;
+showTab=function(tab){
+  const value=asplayerShowTab6.apply(this,arguments);
+  asplayerUpdateViewportMode();
+  return value;
+};
+asplayerUpdateViewportMode();
+
 const asplayer6Back=window.ASPLAYER_BACK;
 window.ASPLAYER_BACK=function(){const selector=document.getElementById('season-select');if(selector&&selector.getAttribute('aria-expanded')==='true'&&!document.getElementById('details-modal').classList.contains('hidden')){selector.click();selector.focus();return;}return asplayer6Back?.();};
 languageUI();
