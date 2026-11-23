@@ -30,7 +30,7 @@ document.head.appendChild(css);
 let remote = false, modal = null, opener = null, waitingEpisode = false;
 let locked = [], lastDpadAt = 0, lastTrigger = null, redirecting = false;
 let textLocked=null, textEditing=null, enteringText=false;
-let pendingCategory=null;
+let pendingCategory=null, lastCategoryFocus=null;
 try { remote = bridge.isAndroidTv() === true; } catch (_) {}
 remote = remote || !!window.AndroidTVNavigation || /Android TV|Google TV|AFT[A-Z]/i.test(navigator.userAgent);
 const arrows = {ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
@@ -217,6 +217,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('focusin',e=>{
   if(!remote)return;
   if(isTextField(e.target))pendingCategory=null;
+  if(e.target.matches?.('#categories button[data-category]'))lastCategoryFocus=e.target;
   if(modal&&!modal.contains(e.target)&&!redirecting){
     redirecting=true;focusElement(preferred(modal))||focusElement(choices(modal)[0]);redirecting=false;
     return;
@@ -445,6 +446,7 @@ function catalogDirection(key){
   const pager=window.ASPLAYER_PAGER;
   const search=document.getElementById('search'),refresh=document.getElementById('refresh-cat');
   const currentCategory=selectedCategoryButton()||categories[0];
+  const previousCategory=visible(lastCategoryFocus)?lastCategoryFocus:currentCategory;
   const firstResult=()=>pager?.active()?pager.at(0):titles[0];
   // D-pad focus does NOT activate categories. Only OK/Enter selects them.
   if(a.closest('.sidebar')&&key==='ArrowRight'){
@@ -452,11 +454,11 @@ function catalogDirection(key){
   }
   if(a===refresh){
     if(key==='ArrowDown'||key==='ArrowRight'){focusElement(search);return true;}
-    if(key==='ArrowLeft'){focusElement(currentCategory);return true;}
+    if(key==='ArrowLeft'){focusElement(previousCategory);return true;}
   }
   if(a===search){
     if(a===textEditing)return false;
-    if(key==='ArrowLeft'){focusElement(currentCategory);return true;}
+    if(key==='ArrowLeft'){focusElement(previousCategory);return true;}
     if(key==='ArrowUp'){focusElement(refresh);return true;}
     if(key==='ArrowDown'||key==='ArrowRight'){focusElement(firstResult()||backCats);return true;}
   }
@@ -471,7 +473,7 @@ function catalogDirection(key){
   }
   if(a===backCats){
     if(key==='ArrowUp'){focusElement(search);return true;}
-    if(key==='ArrowLeft'){focusElement(currentCategory);return true;}
+    if(key==='ArrowLeft'){focusElement(previousCategory);return true;}
     if(key==='ArrowDown'||key==='ArrowRight'){focusElement(firstResult());return true;}
   }
   if(cards.contains(a)){
