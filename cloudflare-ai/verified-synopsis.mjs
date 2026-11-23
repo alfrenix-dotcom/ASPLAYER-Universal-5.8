@@ -5,8 +5,12 @@ const key=s=>tidy(s,250).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLower
   .replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
 export function cleanWorkTitle(input){
  let title=tidy(input,180);
- title=title.replace(/(?:[\s._\-[\]()]+(?:lat|latino|latina|castellano|cast|esp|espanol|español|eng|english|sub|subtitulado|doblado|dual|multi|4k|uhd|hdr|1080p|720p|hd|fhd))+\s*$/giu,'');
- title=title.replace(/\s*\((?:19|20)\d{2}\)\s*$/,'').trim();
+ for(let i=0;i<5;i++){
+  const before=title;
+  title=title.replace(/\s*[\[(]?\s*(?:lat|latino|latina|castellano|cast|esp|espanol|español|eng|english|sub|subtitulado|doblado|dual|multi|4k|uhd|hdr|1080p|720p|hd|fhd)\s*[\])]?\s*$/iu,'').trim();
+  title=title.replace(/\s*[\[(]?\s*(?:19|20)\d{2}\s*[\])]?\s*$/u,'').trim();
+  if(title===before)break;
+ }
  return title||tidy(input,180);
 }
 const yearOf=s=>{const v=Number(String(s||'').match(/\b(?:19|20)\d{2}\b/)?.[0]||0);return v>=1900&&v<=new Date().getUTCFullYear()+2?v:0};
