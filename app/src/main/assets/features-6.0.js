@@ -135,7 +135,7 @@ asplayer6Style.textContent=`
 
  /* 6.0.4: the Home viewport follows the same adaptive geometry as catalogs.
     Settings keeps a single focus path and an independent scroll container. */
- .asplayer-home-tools{display:none;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+ .asplayer-home-tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
  .asplayer-home-refresh{display:none}
  body.asplayer-tv-dpad:is(.asplayer-home-open,.asplayer-settings-open) #app-shell{
    height:100vh;height:100dvh;min-height:0;overflow:hidden
