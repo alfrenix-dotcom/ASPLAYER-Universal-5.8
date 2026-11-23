@@ -84,6 +84,34 @@ const {pathToFileURL}=require('node:url');
     for(let i=0;i<7;i++)await page.keyboard.press('ArrowRight');
     await page.waitForFunction(()=>document.activeElement.dataset.channelId==='18'&&document.querySelector('#most-watched-channels').scrollLeft>0);
     console.log('PASS: watched-channel logo cache, fallback, horizontal carousel and D-pad');
+    // ASPLAYER 6.0.4: Home's compact header and vertical row-to-row D-pad.
+    await page.evaluate(()=>{
+      document.body.classList.add('asplayer-home-open');
+      document.getElementById('recent-posters').innerHTML='<button class="poster" id="test-home-movie">Movie</button>';
+      document.getElementById('recent-series').innerHTML='<button class="poster" id="test-home-series">Series</button>';
+    });
+    assert.equal(await page.locator('#asplayer-home-refresh').isVisible(),true);
+    assert.equal(await page.locator('#app-shell .topbar .pill').isVisible(),true);
+    assert((await page.locator('#app-shell .sidebar').boundingBox()).width<=110);
+    await page.locator('#asplayer-home-refresh').focus();
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.channelId),'25');
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.channelId),'24');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'test-home-movie');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'see-all-series');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'test-home-series');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'test-home-series','Home must not jump to dock at last row');
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.nav),'home','Left from first row item returns to the Home dock');
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'asplayer-home-refresh');
+    console.log('PASS: responsive Home header, vertical rows, horizontal channels, dock at deliberate boundary only');
+
     await page.evaluate(()=>{store(HISTORY_KEY,{});window.ASPLAYER_REFRESH_WATCH()});
     assert.equal(await page.locator('#most-watched-home').isVisible(),false);
     await page.evaluate(()=>{
@@ -206,6 +234,45 @@ const {pathToFileURL}=require('node:url');
       const cb=document.createElement('input');cb.id='tv-focus-checkbox-test';cb.type='checkbox';
       document.getElementById('view-settings').appendChild(cb);
     });
+
+    // Settings must be a single ordered focus path across every card and
+    // independent of control widths; focused controls must scroll into view.
+    await page.evaluate(()=>{document.body.classList.remove('asplayer-home-open');document.body.classList.add('asplayer-settings-open');});
+    assert((await page.locator('#app-shell .sidebar').boundingBox()).width<=110);
+    await page.locator('#order-content').focus();
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'epg-source','Down moves between selects, not their values');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'synopsis-source');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'online-endpoint');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'save-online');
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'check-notice');
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'save-online');
+    const visited=new Set();
+    for(let i=0;i<36;i++){
+      await page.keyboard.press('ArrowDown');
+      const info=await page.evaluate(()=>({id:document.activeElement.id,inside:document.getElementById('view-settings').contains(document.activeElement)}));
+      assert.equal(info.inside,true,'Down must never escape Settings to the dock');
+      visited.add(info.id);
+    }
+    for(const id of ['language','parent-pin','refresh-cache','preferred-player','default-aspect','audio-language','asplayer-593-picture','asplayer-593-vpn']){
+      assert(visited.has(id),'Settings control not reachable by Down: '+id);
+    }
+    assert(await page.locator('#app-shell main').evaluate(el=>el.scrollTop)>0,'Settings focused items should scroll inside main');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'tv-focus-checkbox-test','Last Settings item does not wrap');
+    for(let i=0;i<36;i++)await page.keyboard.press('ArrowUp');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'order-content','Up returns all the way to the first control');
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.nav),'settings','Only intentional Left returns to dock');
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'order-content');
+    console.log('PASS: complete Settings D-pad traversal, native picker focus, independent scroll and deliberate dock transition');
+
     await page.locator('#tv-focus-checkbox-test').focus();
     await page.keyboard.press('Enter');
     assert.equal(await page.locator('#tv-focus-checkbox-test').isChecked(),true);
@@ -296,6 +363,21 @@ const {pathToFileURL}=require('node:url');
     assert.equal(await mobile.locator('body').evaluate(el=>el.classList.contains('asplayer-tv-dpad')),false);
     assert.equal(await mobile.evaluate(()=>document.querySelector('#cards').contains(document.activeElement)),false);
     assert(await mobile.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2));
+
+    // Touch Home remains responsive and keeps its server pill after reparenting.
+    await mobile.evaluate(()=>{
+      document.getElementById('view-catalog').classList.add('hidden');
+      document.getElementById('view-home').classList.remove('hidden');
+      active='home';asplayerUpdateViewportMode();
+    });
+    assert.equal(await mobile.locator('#asplayer-home-refresh').isVisible(),false);
+    assert.equal(await mobile.locator('#app-shell .topbar .pill').isVisible(),true);
+    assert(await mobile.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2));
+    await mobile.evaluate(()=>{
+      document.getElementById('view-home').classList.add('hidden');
+      document.getElementById('view-catalog').classList.remove('hidden');
+      active='live';asplayerUpdateViewportMode();
+    });
     await mobile.setViewportSize({width:844,height:390});
     assert.equal(await mobile.locator('#tv-catalog-layout').evaluate(el=>getComputedStyle(el).display),'grid');
     console.log('PASS: vertical lists on touch phone, scroll to selected category results, no keyboard focus capture, portrait and landscape layouts');
