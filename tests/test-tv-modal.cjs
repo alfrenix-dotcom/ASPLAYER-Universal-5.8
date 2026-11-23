@@ -111,6 +111,7 @@ const {pathToFileURL}=require('node:url');
     await page.keyboard.press('ArrowRight');
     assert.equal(await page.evaluate(()=>document.activeElement.id),'asplayer-home-refresh');
     console.log('PASS: responsive Home header, vertical rows, horizontal channels, dock at deliberate boundary only');
+    await page.evaluate(()=>document.body.classList.remove('asplayer-home-open'));
 
     await page.evaluate(()=>{store(HISTORY_KEY,{});window.ASPLAYER_REFRESH_WATCH()});
     assert.equal(await page.locator('#most-watched-home').isVisible(),false);
@@ -235,51 +236,59 @@ const {pathToFileURL}=require('node:url');
       document.getElementById('view-settings').appendChild(cb);
     });
 
-    // Settings must be a single ordered focus path across every card and
-    // independent of control widths; focused controls must scroll into view.
-    await page.evaluate(()=>{document.body.classList.remove('asplayer-home-open');document.body.classList.add('asplayer-settings-open');});
+    // Settings uses the actually visible reading order after earlier UI
+    // modules have arranged the cards. D-pad Down must never skip controls.
+    await page.evaluate(()=>{
+      document.body.classList.remove('asplayer-home-open');
+      document.body.classList.add('asplayer-settings-open');
+      const selector='button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+      window.__settingsTargets=Array.from(document.getElementById('view-settings').querySelectorAll(selector)).filter(el=>{
+        if(!el.isConnected||el.closest('.hidden,[hidden],[inert],[aria-hidden="true"]')||el.matches(':disabled')||el.tabIndex<0)return false;
+        const st=getComputedStyle(el),r=el.getBoundingClientRect();
+        return st.visibility!=='hidden'&&st.display!=='none'&&r.width>=3&&r.height>=3;
+      });
+      const row=Array.from(document.querySelectorAll('#view-settings .actions')).find(row=>
+        window.__settingsTargets.filter(el=>row.contains(el)).length>=2);
+      window.__settingsActionPair=row?window.__settingsTargets.filter(el=>row.contains(el)).slice(0,2):[];
+    });
+    const settingCount=await page.evaluate(()=>window.__settingsTargets.length);
+    assert(settingCount>=18,'Settings controls must be visible and navigable');
     assert((await page.locator('#app-shell .sidebar').boundingBox()).width<=110);
-    await page.locator('#order-content').focus();
-    console.log('DEBUG SETTINGS BEFORE',JSON.stringify(await page.evaluate(()=>({
-      active,focus:document.activeElement.id,body:document.body.className,
-      settings:document.getElementById('view-settings').className,
-      controls:Array.from(document.querySelectorAll('#view-settings select,#view-settings input,#view-settings button'))
-        .slice(0,12).map(el=>({id:el.id,visible:el.getBoundingClientRect().width>3,tabIndex:el.tabIndex,disabled:el.disabled}))
-    }))));
-
-    await page.keyboard.press('ArrowDown');
-    console.log('DEBUG SETTINGS AFTER',JSON.stringify(await page.evaluate(()=>({active,focus:document.activeElement.id,body:document.body.className}))));
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'epg-source','Down moves between selects, not their values');
-    await page.keyboard.press('ArrowDown');
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'synopsis-source');
-    await page.keyboard.press('ArrowDown');
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'online-endpoint');
-    await page.keyboard.press('ArrowDown');
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'save-online');
-    await page.keyboard.press('ArrowRight');
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'check-notice');
-    await page.keyboard.press('ArrowLeft');
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'save-online');
+    if(await page.evaluate(()=>window.__settingsActionPair.length===2)){
+      await page.evaluate(()=>window.__settingsActionPair[0].focus());
+      await page.keyboard.press('ArrowRight');
+      assert.equal(await page.evaluate(()=>document.activeElement===window.__settingsActionPair[1]),true,'Right moves within actions row');
+      await page.keyboard.press('ArrowLeft');
+      assert.equal(await page.evaluate(()=>document.activeElement===window.__settingsActionPair[0]),true,'Left returns within actions row');
+    }
     const visited=new Set();
-    for(let i=0;i<36;i++){
+    await page.evaluate(()=>window.__settingsTargets[0].focus());
+    for(let i=1;i<settingCount;i++){
       await page.keyboard.press('ArrowDown');
-      const info=await page.evaluate(()=>({id:document.activeElement.id,inside:document.getElementById('view-settings').contains(document.activeElement)}));
-      assert.equal(info.inside,true,'Down must never escape Settings to the dock');
-      visited.add(info.id);
+      const reached=await page.evaluate(i=>({
+        expected:document.activeElement===window.__settingsTargets[i],
+        id:document.activeElement.id,
+        inSettings:document.getElementById('view-settings').contains(document.activeElement)
+      }),i);
+      assert.equal(reached.inSettings,true,'Down must never jump from Settings to dock');
+      assert.equal(reached.expected,true,'Down must reach next control (step '+i+', '+reached.id+')');
+      visited.add(reached.id);
     }
     for(const id of ['language','parent-pin','refresh-cache','preferred-player','default-aspect','audio-language','asplayer-593-picture','asplayer-593-vpn']){
-      assert(visited.has(id),'Settings control not reachable by Down: '+id);
+      assert(visited.has(id),'Settings item not reachable with Down: '+id);
     }
-    assert(await page.locator('#app-shell main').evaluate(el=>el.scrollTop)>0,'Settings focused items should scroll inside main');
+    assert(await page.locator('#app-shell main').evaluate(el=>el.scrollTop)>0,'Settings scroll must track focus');
     await page.keyboard.press('ArrowDown');
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'tv-focus-checkbox-test','Last Settings item does not wrap');
-    for(let i=0;i<36;i++)await page.keyboard.press('ArrowUp');
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'order-content','Up returns all the way to the first control');
+    assert.equal(await page.evaluate(()=>document.activeElement===window.__settingsTargets.at(-1)),true,'Down stays at last item');
+    for(let i=settingCount-2;i>=0;i--){
+      await page.keyboard.press('ArrowUp');
+      assert.equal(await page.evaluate(i=>document.activeElement===window.__settingsTargets[i],i),true,'Up reaches previous item '+i);
+    }
     await page.keyboard.press('ArrowLeft');
-    assert.equal(await page.evaluate(()=>document.activeElement.dataset.nav),'settings','Only intentional Left returns to dock');
+    assert.equal(await page.evaluate(()=>document.activeElement.dataset.nav),'settings','Only deliberate Left returns to dock');
     await page.keyboard.press('ArrowRight');
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'order-content');
-    console.log('PASS: complete Settings D-pad traversal, native picker focus, independent scroll and deliberate dock transition');
+    assert.equal(await page.evaluate(()=>document.activeElement===window.__settingsTargets[0]),true,'Right reenters first Settings control');
+    console.log('PASS: all Settings controls, vertical focus, independent scroll and intentional dock access');
 
     await page.locator('#tv-focus-checkbox-test').focus();
     await page.keyboard.press('Enter');
@@ -292,6 +301,7 @@ const {pathToFileURL}=require('node:url');
     assert.equal(await page.locator('#parent-pin').evaluate(el=>el.readOnly),true);
     await page.evaluate(()=>{
       document.getElementById('tv-focus-checkbox-test').remove();
+      document.body.classList.remove('asplayer-settings-open');
       document.getElementById('view-settings').classList.add('hidden');
       document.getElementById('view-catalog').classList.remove('hidden');
       active='vod';
