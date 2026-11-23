@@ -22,3 +22,32 @@ El servicio de Alftech Solutions se despliega en `https://asplayer-ai.alfrenix.w
 El asistente procesa consultas y devuelve palabras clave. La app coteja esas palabras localmente contra títulos y metadatos que ya están cargados, respetando control parental. No hay búsqueda web ni acceso a credenciales o historial. Las sinopsis se traducen a partir de texto del proveedor, no de una fuente verificada independiente. La IA puede equivocarse; la app no presenta sus respuestas como hechos verificados. El servicio no debe recibir credenciales ni datos personales en las consultas. La app envía únicamente las preguntas expresas y las sinopsis elegidas con IA habilitada. Cloudflare es el procesador externo; revisar la política de privacidad y declaración de datos de Play antes de publicar.
 
 El límite de 5 inferencias/minuto por IP y ubicación de Cloudflare reduce abuso; no es una autenticación ni un límite global exacto. El plan Free es el límite económico definitivo; no activar planes de pago. `GET /api/announcements` funciona también con 5.9.20; la traducción y asistente requieren 5.9.21. Pruebas locales: `node ../tests/test-online-ai.mjs` (desde este directorio).
+
+
+## Worker Control · diseño ALFTECH SOLUTIONS y sinopsis documentadas (noviembre 2026)
+
+- Panel: `/admin` ahora usa identidad ALFTECH SOLUTIONS con el logo de ASPLAYER del repositorio, una vista responsiva para móvil/escritorio, indicadores de avisos activos/programados/retirados, historial, vista previa español/inglés, plantillas y opciones de vencimiento rápido. Las contraseñas permanecen en memoria solamente; nunca están embebidas en el panel ni guardadas en el navegador.
+- Los comunicados continúan como **texto plano** (`announcement.message`, hasta 400 caracteres por idioma). Se conservan `announcement`, `announcements`, `expires_at`, retirada y Durable Object, de modo que la app 5.9.25–6.0.3 no requiere cambios.
+- La caducidad o retirada deja de **entregar** el aviso en próximas consultas. No puede cerrar de manera remota un mensaje ya visible en las apps existentes: el cliente no procesa órdenes de retiro para banners mostrados ni dispone de temporizador conectado al Worker. Una duración seleccionada en el panel no promete cierre inmediato en la pantalla del usuario.
+- Las versiones mencionadas tampoco interpretan un diseño enriquecido enviado por el Worker: ni HTML, ni CSS, ni justificación, ni espacios personalizados. Por eso se ofrecen plantillas concisas que funcionan en el diseño actual.
+- Si el servidor de origen omite una sinopsis, `POST /api/synopsis` con `{title, category, lang, generate:true, year?}` busca coincidencias documentadas en TVmaze (series), Wikipedia (series y películas) y, **solo si se configura** un token de lectura, TMDB. La IA **no genera una trama de memoria** cuando faltan referencias fiables; devolverá `{grounded:false,generated:false,synopsis:""}` en obras ambiguas o sin información.
+- La respuesta conserva el contrato esperado desde 5.9.25: `grounded:false`, `generated:true` y `synopsis` no vacío para texto generado a partir de una fuente real. Se incluyen `source`, `source_url` y `verified_reference` como metadatos opcionales ignorables por apps antiguas. El texto visible incorpora atribución y URL de la fuente.
+- El idioma lo decide `lang: es | en`, transmitido por la aplicación. Cuando la fuente está en otro idioma, el Worker utiliza Workers AI para traducir/resumir fielmente la descripción pública. Si falla la traducción, no entrega texto en el idioma equivocado.
+- El Worker **no recibe imágenes ni URL de la portada del IPTV** de estas apps; no se declara ninguna comparación visual de posters. El cartel de fuentes externas puede existir, pero no identifica por sí solo el contenido del servidor.
+- Atribución: TVmaze utiliza CC BY-SA; Wikipedia usa licencias libres con obligaciones de atribución. La respuesta incluye nombre y enlace de fuente. Si se habilita TMDB, revisar condiciones y atribución exigida por TMDB (incluida la sección de créditos de la app) antes de uso en producción. El token `TMDB_READ_TOKEN` debe configurarse como **secret de Cloudflare**, nunca publicarse en GitHub o APK; si no está configurado, TMDB no se consulta.
+- No se envían usuario, contraseña, URL del servidor de origen, historial de reproducción ni catálogo completo a las fuentes de metadatos. Únicamente se consulta título normalizado, tipo, idioma y año opcional.
+- Los resultados dependen de la disponibilidad de las APIs y la cuota de Workers AI. Las pruebas automáticas usan datos simulados y no acreditan el estado del Worker desplegado.
+
+### Prueba y publicación
+
+Desde la raíz del repositorio: `node tests/test-online-ai.mjs && node tests/test-notices.mjs`. Hay además un flujo de GitHub Actions de validación aislada para la rama de Worker.
+
+La publicación requiere acceso autenticado a la **cuenta Cloudflare que aloja** `asplayer-ai.alfrenix.workers.dev`:
+
+```bash
+cd cloudflare-ai
+npx wrangler login
+npx wrangler deploy
+```
+
+Verificar después `https://asplayer-ai.alfrenix.workers.dev/admin`, `/api/announcements?lang=es` y pruebas de `POST /api/synopsis` sin datos de cuentas IPTV. **Subir cambios a GitHub no publica automáticamente el Worker.**
