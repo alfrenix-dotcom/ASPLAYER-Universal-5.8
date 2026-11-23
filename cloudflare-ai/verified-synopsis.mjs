@@ -17,19 +17,23 @@ const htmlText=x=>tidy(x,5000).replace(/<[^>]*>/g,' ').replace(/&(#x[0-9a-f]+|#\
 }).replace(/\s+/g,' ').trim();
 const titleMatch=(query,actual)=>{
  const q=key(query),a=key(actual);
- return q&&a&&(q===a||a.startsWith(q+' entre historias')||a.startsWith(q+' the ')||a.startsWith(q+' part '));
+ return Boolean(q&&a&&q===a);
 };
 function select(items,query,year){
  const candidates=items.filter(x=>titleMatch(query,x.title)&&x.text.length>=45);
- const sameYear=year?candidates.filter(x=>x.year&&Math.abs(x.year-year)<=1):[];
- const ranked=(sameYear.length?sameYear:year?candidates.filter(x=>!x.year):candidates)
-  .sort((a,b)=>Number(key(b.title)===key(query))-Number(key(a.title)===key(query))||b.text.length-a.text.length);
- if(!ranked.length)return null;
- if(!year&&ranked.length>1){
-   const knownYears=new Set(ranked.map(x=>x.year).filter(Boolean));
-   if(knownYears.size>1)return null; // Ambiguous remakes cannot be identified by title alone.
+ const dated=candidates.filter(x=>x.year);
+ if(!candidates.length)return null;
+ if(year){
+  const matching=dated.filter(x=>Math.abs(x.year-year)<=1).sort((a,b)=>Math.abs(a.year-year)-Math.abs(b.year-year));
+  if(matching.length===1)return matching[0];
+  if(matching.length>1)return null;
+  // Do not return an adaptation with an explicitly contradictory premiere year.
+  return dated.length?null:candidates.length===1?candidates[0]:null;
  }
- return ranked[0];
+ // The title alone cannot distinguish two remakes released in separate years.
+ if(new Set(dated.map(x=>x.year)).size>1)return null;
+ if(candidates.length>1&&dated.length===0)return null;
+ return dated[0]||candidates[0];
 }
 async function fetchJSON(fetcher,url,limit=70000){
  try{
@@ -58,12 +62,12 @@ async function lookupTMDB(title,category,year,language,token,fetcher){
  const protectedFetch=async(url,opts)=>fetcher(url,{...opts,headers:{...opts.headers,Authorization:'Bearer '+token}});
  const d=await fetchJSON(protectedFetch,u.href,95000);
  if(!Array.isArray(d?.results))return null;
- const items=d.results.slice(0,12).map(x=>({
+ const items=d.results.slice(0,12).filter(x=>Number.isInteger(x.id)&&x.id>0).map(x=>({
   title:tidy(x.title||x.name,180),originalTitle:tidy(x.original_title||x.original_name,180),
   year:yearOf(x.release_date||x.first_air_date),text:tidy(x.overview,2500),
   url:'https://www.themoviedb.org/'+type+'/'+x.id,source:'TMDB',language
  }));
- const matched=select(items.filter(x=>titleMatch(title,x.title)||titleMatch(title,x.originalTitle)),title,year);
+ const matched=select(items.filter(x=>titleMatch(title,x.title)||titleMatch(title,x.originalTitle)).map(x=>({...x,title:titleMatch(title,x.title)?x.title:x.originalTitle})),title,year);
  if(matched&&matched.text)return matched;
  return null;
 }
@@ -74,7 +78,7 @@ async function lookupWikipedia(title,category,year,language,fetcher){
  const data=await fetchJSON(fetcher,u.href,145000);
  const pages=Object.values(data?.query?.pages||{});
  const catRe=category==='series'?/\b(telenovela|serie de television|television series|tv series|soap opera|television drama|drama televisivo|serie televisiva)\b/i:/\b(pelicula|film|movie|largometraje|feature film)\b/i;
- const items=pages.map(p=>{
+ const items=pages.slice(0,8).map(p=>{
   const titleWiki=tidy(p?.title,190),text=tidy(p?.extract,2500).replace(/\s+/g,' ');
   const basicTitle=titleWiki.replace(/\s*\([^)]*\)\s*$/,'');
   return {title:basicTitle,text,year:yearOf(text.slice(0,500)),url:'https://'+lang+'.wikipedia.org/wiki/'+encodeURIComponent(titleWiki.replace(/ /g,'_')),source:'Wikipedia',language:lang,
