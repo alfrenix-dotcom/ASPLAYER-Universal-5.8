@@ -2,7 +2,7 @@ name: ASPLAYER Universal — Build and Validate
 on:
   workflow_dispatch:
   push:
-    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass, development/5.9.20-details-recents, development/5.9.21-cloudflare-ai, development/5.9.26-cold-start-notices, development/5.9.27-layout-glass, development/5.9.28-glass-depth, development/6.0-smart, development/6.0.4-settings-dpad]
+    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass, development/5.9.20-details-recents, development/5.9.21-cloudflare-ai, development/5.9.26-cold-start-notices, development/5.9.27-layout-glass, development/5.9.28-glass-depth, development/6.0-smart, development/6.0.4-settings-dpad, feature/6.0.4-back-exit-confirmation]
     paths:
       - 'app/**'
       - 'tests/**'
