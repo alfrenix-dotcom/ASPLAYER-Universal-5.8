@@ -1417,7 +1417,24 @@ public final class MainActivity extends Activity {
                     (android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
             if(ime!=null)ime.hideSoftInputFromWindow(web.getWindowToken(),0);
         }
-        else evaluate("window.ASPLAYER_BACK&&window.ASPLAYER_BACK();");
+        else evaluate("(function(){"
+                +"var focused=document.activeElement;"
+                // The first Back while editing ends text navigation; never exit unexpectedly.
+                +"if(focused&&focused.matches('input,textarea,select,[contenteditable]')){"
+                +"window.ASPLAYER_BACK?.();focused.blur();return;}"
+                +"var auth=document.getElementById('auth-screen');"
+                +"var shell=document.getElementById('app-shell');"
+                +"var home=document.getElementById('view-home');"
+                +"var atRoot=(auth&&!auth.classList.contains('hidden'))"
+                +"||(shell&&!shell.classList.contains('hidden')"
+                +"&&home&&!home.classList.contains('hidden'));"
+                +"var overlays=document.querySelectorAll('.modal,.announcement,#modern-player');"
+                +"for(var i=0;i<overlays.length;i++){"
+                +"if(!overlays[i].classList.contains('hidden')){"
+                +"window.ASPLAYER_BACK?.();return;}}"
+                +"if(atRoot){ASPLAYER.requestExit();return;}"
+                +"window.ASPLAYER_BACK?.();"
+                +"})()");
     }
     @Override protected void onStop() {
         resumeOpening=playerVisible&&(!playbackStarted||!videoOutputSeen)&&!playbackFailed;
