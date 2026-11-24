@@ -88,6 +88,7 @@ public final class MainActivity extends Activity {
     private final ArrayList<Button> seekButtons=new ArrayList<>();
     private boolean remotePlayerMode, trackDialogOpen;
     private AlertDialog trackDialog;
+    private AlertDialog exitDialog;
     private long lastSeekAt, stableSince, pendingResumeMs;
     private boolean isTvDevice() {
         return (getResources().getConfiguration().uiMode
@@ -1208,6 +1209,9 @@ public final class MainActivity extends Activity {
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
             });
         }
+        @JavascriptInterface public void requestExit() {
+            runOnUiThread(MainActivity.this::showExitConfirmation);
+        }
         @JavascriptInterface public String getAppVersion() { return "6.0.4"; }
         @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
             runOnUiThread(()->{
@@ -1375,14 +1379,43 @@ public final class MainActivity extends Activity {
             root.requestApplyInsets();
         }
     }
+    private void showExitConfirmation() {
+        if(isFinishing() || isDestroyed() || playerVisible
+                || (exitDialog!=null && exitDialog.isShowing()))return;
+        AlertDialog dialog=new AlertDialog.Builder(this)
+                .setTitle(localized("¿Salir de ASPLAYER?", "Exit ASPLAYER?"))
+                .setMessage(localized("¿Deseas cerrar la aplicación?", "Do you want to close the app?"))
+                .setNegativeButton(localized("Cancelar", "Cancel"), (d,which)->{ })
+                .setPositiveButton(localized("Salir", "Exit"), (d,which)->finishAffinity())
+                .create();
+        exitDialog=dialog;
+        dialog.setOnShowListener(d->{
+            // On Android TV, Enter must never choose Exit by default.
+            if(isTvDevice() || browsingRemoteMode) {
+                Button cancel=dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+                if(cancel!=null)focusRemote(cancel);
+            }
+        });
+        dialog.setOnDismissListener(d->{if(exitDialog==dialog)exitDialog=null;});
+        dialog.show();
+    }
     @Override public void onBackPressed() { handleAppBack(); }
     private void handleAppBack() {
+        if(exitDialog!=null && exitDialog.isShowing()) {
+            exitDialog.dismiss();return;
+        }
         if(playerVisible){
             if(trackDialog!=null){trackDialog.dismiss();return;}
             if(remotePlayer()&&!feedbackBlocking()&&controls.getVisibility()==View.VISIBLE){
                 handler.removeCallbacks(hideControls);controls.setVisibility(View.GONE);mediaFocus();return;
             }
             closePlayer(true);
+        }
+        else if(keyboardOpen && web!=null) {
+            // First Back closes the keyboard. A subsequent Back navigates/exits.
+            android.view.inputmethod.InputMethodManager ime=
+                    (android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+            if(ime!=null)ime.hideSoftInputFromWindow(web.getWindowToken(),0);
         }
         else evaluate("window.ASPLAYER_BACK&&window.ASPLAYER_BACK();");
     }
@@ -1436,6 +1469,7 @@ public final class MainActivity extends Activity {
         if(requestCode==PlayUpdateNotice.PERMISSION_REQUEST&&updateNotice!=null)updateNotice.notifyAvailable("es".equals(uiLanguage),false);
     }
     @Override protected void onDestroy() {
+        if(exitDialog!=null){exitDialog.dismiss();exitDialog=null;}
         closePlayer(false);
         if(player!=null) {
             if(attached)player.detachViews();
