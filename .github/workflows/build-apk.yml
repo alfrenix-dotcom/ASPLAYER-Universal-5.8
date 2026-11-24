@@ -67,6 +67,8 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('name='+name+'\n')
           print('Source identity, version and navigation checks passed; signing not verified.')
           PY
+      - name: Test Back-to-exit routing on Android and Android TV
+        run: node tests/test-exit-back.cjs
       - name: Test native live startup policy
         run: |
           mkdir -p "$RUNNER_TEMP/live-policy-tests"
