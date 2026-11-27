@@ -211,7 +211,7 @@ public final class MainActivity extends Activity {
             }
             @Override public void onPageFinished(WebView v,String url) {
                 super.onPageFinished(v,url);
-                if("file:///android_asset/index.html".equals(url)){publishWebInsets();publishUpdateState();if(isTvDevice()||browsingRemoteMode)restoreBrowsingFocus(true);}
+                if("file:///android_asset/index.html".equals(url)){publishWebInsets();publishUpdateState();publishPerformanceTier();if(isTvDevice()||browsingRemoteMode)restoreBrowsingFocus(true);}
             }
         });
         web.addJavascriptInterface(new Bridge(), "ASPLAYER");
