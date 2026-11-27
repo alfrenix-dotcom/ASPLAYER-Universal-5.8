@@ -24,8 +24,18 @@ jobs:
           python smart-tv/build.py
           python -m json.tool smart-tv/dist/webos/appinfo.json
           python -c "import xml.etree.ElementTree as E; E.parse('smart-tv/dist/tizen/config.xml')"
+      - run: node smart-tv/tests/smoke.cjs
       - uses: actions/upload-artifact@v4
         with:
-          name: ASPLAYER-Smart-TV-1.0.0-source-projects
+          name: ASPLAYER-Smart-TV-1.0.1-source-projects
           path: smart-tv/dist/
+          if-no-files-found: error
+      - run: npm install -g @webos-tools/cli
+      - run: |
+          mkdir -p smart-tv/packages
+          ares-package smart-tv/dist/webos -o smart-tv/packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ASPLAYER-webOS-1.0.1-IPK
+          path: smart-tv/packages/*.ipk
           if-no-files-found: error
