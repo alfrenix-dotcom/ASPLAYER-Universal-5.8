@@ -1,0 +1,31 @@
+name: ASPLAYER Smart TV - validate source
+on:
+  push:
+    branches: ['smart-tv/universal-1.0.0']
+    paths: ['smart-tv/**', '.github/workflows/smart-tv-preview.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install Pillow
+      - run: |
+          node --check smart-tv/src/app.js
+          node --check smart-tv/src/platform.js
+          python smart-tv/build.py
+          python -m json.tool smart-tv/dist/webos/appinfo.json
+          python -c "import xml.etree.ElementTree as E; E.parse('smart-tv/dist/tizen/config.xml')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ASPLAYER-Smart-TV-1.0.0-source-projects
+          path: smart-tv/dist/
+          if-no-files-found: error
