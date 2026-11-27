@@ -27,18 +27,18 @@ for target in ('tizen','webos','vidaa'):
     if target=='tizen':
         html=html.replace('<script src="platform.js">','<script src="$WEBAPIS/webapis/webapis.js"></script><script src="platform.js">')
         (dest/'config.xml').write_text("""<?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://alftechsolutions.com/asplayer" version="1.0.0" viewmodes="maximized">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://alftechsolutions.com/asplayer" version="1.0.1" viewmodes="maximized">
   <tizen:application id="ASPLAYERTV.ASPlayer" package="ASPLAYERTV" required_version="5.0"/>
   <content src="index.html"/><icon src="icon.png"/><name>ASPLAYER</name>
   <access origin="*" subdomains="true"/>
   <tizen:profile name="tv-samsung"/>
   <tizen:privilege name="http://tizen.org/privilege/internet"/>
-  <tizen:privilege name="http://developer.samsung.com/privilege/avplay"/>
+  <tizen:content-security-policy>default-src 'self'; script-src 'self' 'unsafe-inline' file:; style-src 'self' 'unsafe-inline'; img-src 'self' http: https: data:; connect-src http: https:; media-src http: https: blob:; object-src 'self'</tizen:content-security-policy>
   <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
 </widget>
 """)
     elif target=='webos':
-        (dest/'appinfo.json').write_text(json.dumps({"id":"com.alftech.asplayer.smarttv","version":"1.0.0","vendor":"Alftech Solutions","type":"web","main":"index.html","title":"ASPLAYER","icon":"icon80.png","largeIcon":"icon.png","resolution":"1920x1080"},indent=2))
+        (dest/'appinfo.json').write_text(json.dumps({"id":"com.alftech.asplayer.smarttv","version":"1.0.1","vendor":"Alftech Solutions","type":"web","main":"index.html","title":"ASPLAYER","icon":"icon80.png","largeIcon":"icon.png","resolution":"1920x1080"},indent=2))
     (dest/'index.html').write_text(html)
     print('Generated',dest)
 print('Source projects only. Sign/package with vendor SDK; VIDAA requires hosted deployment and partner approval.')
