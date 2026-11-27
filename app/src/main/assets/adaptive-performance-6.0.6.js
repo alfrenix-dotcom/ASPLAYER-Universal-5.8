@@ -69,16 +69,16 @@
   const style = document.createElement('style');
   style.id = 'asplayer-performance-css';
   style.textContent = [
-    'body[data-performance-effective="efficient"] .hero,',
-    'body[data-performance-effective="efficient"] .contact-priority,',
-    'body[data-performance-effective="efficient"] .account-summary,',
-    'body[data-performance-effective="efficient"] #app-shell .topbar,',
-    'body[data-performance-effective="balanced"] .hero {',
+    // Keep the DOM, touch targets, focus outlines and scrolling unchanged.
+    'body[data-performance-effective="efficient"] :is(.sidebar,.topbar,.mobilebar,.dialog,.glass-preview-surface),',
+    'body[data-performance-effective="efficient"] :is(.hero,.contact-priority,.account-summary) {',
     '  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;',
     '}',
-    'body[data-performance-effective="efficient"] .hero,',
-    'body[data-performance-effective="efficient"] .contact-priority,',
-    'body[data-performance-effective="efficient"] .account-summary {',
+    'body[data-performance-effective="balanced"][data-glass-effective="premium"] :is(.sidebar,.topbar,.mobilebar) {',
+    '  -webkit-backdrop-filter:blur(6px)!important;backdrop-filter:blur(6px)!important;',
+    '}',
+    // Remove only ambient decorative shadows, never the selected control outline.
+    'body[data-performance-effective="efficient"] :is(.hero,.contact-priority,.account-summary) {',
     '  box-shadow:none!important;',
     '}'
   ].join('\n');
