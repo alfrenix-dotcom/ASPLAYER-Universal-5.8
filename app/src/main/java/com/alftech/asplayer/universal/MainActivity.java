@@ -68,6 +68,8 @@ public final class MainActivity extends Activity {
             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
     private int safeTop, safeBottom;
     private boolean keyboardOpen;
+    // UI-only signal; never changes playback, buffer sizes or remote-control handling.
+    private volatile boolean lowMemoryPressure;
     private String glassMode = "adaptive";
     private int glassTransparency = 50;
     private FrameLayout root;
@@ -384,6 +386,32 @@ public final class MainActivity extends Activity {
                 if(immersive)controller.hide(android.view.WindowInsets.Type.systemBars());
                 else controller.show(android.view.WindowInsets.Type.systemBars());
             }
+        }
+    }
+    private String detectedPerformanceTier(){
+        android.app.ActivityManager manager=(android.app.ActivityManager)getSystemService(ACTIVITY_SERVICE);
+        android.os.PowerManager power=(android.os.PowerManager)getSystemService(POWER_SERVICE);
+        boolean lowRam=manager!=null && manager.isLowRamDevice();
+        int memoryClassMb=manager!=null?manager.getMemoryClass():256;
+        boolean powerSave=power!=null && power.isPowerSaveMode();
+        boolean memoryLow=lowMemoryPressure;
+        if(manager!=null){
+            android.app.ActivityManager.MemoryInfo info=new android.app.ActivityManager.MemoryInfo();
+            manager.getMemoryInfo(info);
+            memoryLow|=info.lowMemory;
+        }
+        return AdaptivePerformancePolicy.automaticTier(lowRam,memoryClassMb,powerSave,memoryLow);
+    }
+    private void publishPerformanceTier(){
+        if(web!=null) evaluate("window.ASPLAYER_PERFORMANCE_UPDATE?.("+JSONObject.quote(detectedPerformanceTier())+")");
+    }
+    @Override public void onTrimMemory(int level){
+        super.onTrimMemory(level);
+        // TRIM_MEMORY_UI_HIDDEN means only that the Activity is in the background.
+        if(level>=android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
+                && level<=android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL){
+            lowMemoryPressure=true;
+            publishPerformanceTier();
         }
     }
     private boolean canUsePremiumGlass(){
@@ -1212,7 +1240,7 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void requestExit() {
             runOnUiThread(MainActivity.this::showExitConfirmation);
         }
-        @JavascriptInterface public String getAppVersion() { return "6.0.5"; }
+        @JavascriptInterface public String getAppVersion() { return "6.0.6"; }
         @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
             runOnUiThread(()->{
                 AnnouncementJobService.configure(MainActivity.this,enabled,language);
@@ -1224,6 +1252,7 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void checkPlayUpdate(){runOnUiThread(()->MainActivity.this.checkPlayUpdate(true));}
         @JavascriptInterface public void openPlayUpdate(){runOnUiThread(()->updateNotice.openStore());}
         @JavascriptInterface public boolean supportsPremiumGlass(){return canUsePremiumGlass();}
+        @JavascriptInterface public String getPerformanceTier(){return detectedPerformanceTier();}
         @JavascriptInterface public void setGlassAppearance(String mode){
             runOnUiThread(()->{
                 glassMode="premium".equals(mode)||"light".equals(mode)||"off".equals(mode)?mode:"adaptive";
@@ -1456,6 +1485,15 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume(){
         super.onResume();foreground=true;
+        if(lowMemoryPressure){
+            android.app.ActivityManager manager=(android.app.ActivityManager)getSystemService(ACTIVITY_SERVICE);
+            if(manager!=null){
+                android.app.ActivityManager.MemoryInfo info=new android.app.ActivityManager.MemoryInfo();
+                manager.getMemoryInfo(info);
+                if(!info.lowMemory)lowMemoryPressure=false;
+            }
+        }
+        publishPerformanceTier();
         if(isTvDevice()||browsingRemoteMode)restoreBrowsingFocus(true);
         AnnouncementJobService.setForeground(true);
         if(resumeOpening&&playerVisible&&!playbackFailed&&player!=null){
