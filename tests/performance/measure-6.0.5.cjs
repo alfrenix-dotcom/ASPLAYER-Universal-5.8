@@ -98,7 +98,7 @@ const git = (args) => { try { return execFileSync('git', args, {encoding:'utf8'}
      }
 
      const searchMs=await page.evaluate(()=>{
-       filter='Title 1199';
+       filter='title 1199';
        const start=performance.now();
        applyFilter();
        return Number((performance.now()-start).toFixed(1));
