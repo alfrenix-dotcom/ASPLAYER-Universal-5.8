@@ -44,6 +44,7 @@ play=function(item,mode){
     // HTML video element and its competing legacy stream-retry timers.
     if(nativeVisible||!get('modern-player').classList.contains('hidden'))stopPlayer();
     playback={url,ext,mode:'live',title:String(item.name||'Live TV')};
+    try{bridge.setPlaybackTitle?.(String(item.name||''),'live');}catch(_){}
     get('player-choice').classList.add('hidden');
     get('modern-player').classList.add('hidden');
     try{
@@ -59,6 +60,9 @@ play=function(item,mode){
     window.ASPLAYER_REFRESH_WATCH?.();
     return;
   }
+  // Send a human-readable title before requesting native playback.
+  // Never display the server address or credentials in this label.
+  try{bridge.setPlaybackTitle?.(String(item?.name||item?.title||''),mode==='vod'?'vod':mode);}catch(_){}
   try{bridge.setPlaybackOptions(settings.bufferProfile||'adaptive',playAspect,audioPref,subsPref)}catch(_){ }
   return oldPlay(item,mode);
 };
