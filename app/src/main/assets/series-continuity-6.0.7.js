@@ -214,7 +214,19 @@ css.textContent=[
  '#episodes .episode-still-meter i{display:block;height:100%;background:#51e1dc}',
  '#episodes .episode-current{border-color:#46dfda}',
  '#series-auto-next-setting label{display:flex;align-items:center;gap:10px;min-height:44px}',
- 'body.asplayer-tv-dpad #episodes .episode-still-row{min-height:98px;scroll-margin:16px}',
+ // The legacy Android TV rule "body.asplayer-tv-dpad #episodes .episode"
+ // forces display:block. Override it with stronger specificity so the episode
+ // still never expands to the entire width and the caption stays alongside it.
+ 'body.asplayer-tv-dpad #episodes .episode.episode-still-row{display:flex;flex-direction:row;align-items:center;gap:14px;width:100%;min-width:0;min-height:112px;max-height:none;scroll-margin:16px;margin:8px 0;padding:10px 12px;overflow:hidden}',
+ 'body.asplayer-tv-dpad #episodes .episode-still-art{display:grid;flex:0 0 clamp(124px,22%,190px);width:clamp(124px,22%,190px);max-width:190px;min-width:124px;height:auto;max-height:110px;aspect-ratio:16/9;overflow:hidden}',
+ 'body.asplayer-tv-dpad #episodes .episode-still-art img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:cover}',
+ 'body.asplayer-tv-dpad #episodes .episode-still-caption{display:flex;flex:1 1 0;min-width:0;overflow:hidden;overflow-wrap:anywhere;gap:6px}',
+ 'body.asplayer-tv-dpad #episodes .episode-still-caption strong{display:block;min-width:0;font-size:clamp(14px,1.5vw,19px);line-height:1.3;white-space:normal;overflow-wrap:anywhere}',
+ 'body.asplayer-tv-dpad #episodes.episodes{display:block;min-width:0;width:100%;overflow:visible}',
+ 'body.asplayer-tv-dpad #episodes .episode-stills{display:grid;min-width:0;max-height:min(49vh,450px);overflow-y:auto;overflow-x:hidden;gap:8px}',
+ 'body.asplayer-tv-dpad #details-modal .detail-art-text{min-width:0;max-width:100%}',
+ 'body.asplayer-tv-dpad #details-modal .dialog{overflow-x:hidden}',
+
  '@media(max-width:480px){#episodes .episode-still-row{gap:8px;padding:7px}#episodes .episode-still-art{flex-basis:102px}}'
 ].join('\n');document.head.append(css);
 })();
