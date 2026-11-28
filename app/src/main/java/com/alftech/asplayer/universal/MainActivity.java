@@ -89,6 +89,9 @@ public final class MainActivity extends Activity {
     private Button previousEpisodeButton, nextEpisodeButton;
     private TextView seriesNowPlaying;
     private String seriesCurrentLabel="", seriesPreviousLabel="", seriesNextLabel="";
+    // Display-only metadata supplied from catalog item titles. Never extract
+    // a label from IPTV stream URLs, which can contain private credentials.
+    private String playbackContentTitle="", playbackContentMode="";
     private boolean isSeriesPlayback() { return !isLive && playingUrl.contains("/series/"); }
     private String briefEpisodeLabel(String value,int max) {
         if(value==null)return "";
@@ -98,9 +101,14 @@ public final class MainActivity extends Activity {
     private void refreshSeriesControls() {
         boolean series=isSeriesPlayback();
         if(seriesNowPlaying!=null){
-            boolean show=series&&!seriesCurrentLabel.isEmpty();
-            seriesNowPlaying.setVisibility(show?View.VISIBLE:View.GONE);
-            if(show)seriesNowPlaying.setText(seriesCurrentLabel);
+            String caption="";
+            if(series&&!seriesCurrentLabel.isEmpty())caption=seriesCurrentLabel;
+            else if(isLive&&"live".equals(playbackContentMode)&&!playbackContentTitle.isEmpty())
+                caption=localized("Canal: ","Channel: ")+playbackContentTitle;
+            else if(!series&&!isLive&&"vod".equals(playbackContentMode)&&!playbackContentTitle.isEmpty())
+                caption=localized("Película: ","Movie: ")+playbackContentTitle;
+            seriesNowPlaying.setVisibility(caption.isEmpty()?View.GONE:View.VISIBLE);
+            if(!caption.isEmpty())seriesNowPlaying.setText(caption);
         }
         if(previousEpisodeButton!=null){
             previousEpisodeButton.setText(series?(remotePlayer()?localized("◀ Anterior","◀ Previous"): "◀ Cap."):"−10s");
@@ -383,6 +391,7 @@ public final class MainActivity extends Activity {
                 case MediaPlayer.Event.Paused:
                     if(playbackStarted){rebufferWaiting=false;cancelPlaybackDeadline();handler.removeCallbacks(showRebuffer);hidePlaybackFeedback();}
                     updatePlayerLabels();
+                    if(!isLive)showControls();
                     break;
                 case MediaPlayer.Event.EndReached:
                     cancelVideoWatchdog();cancelPlaybackDeadline();hidePlaybackFeedback();
@@ -853,7 +862,10 @@ public final class MainActivity extends Activity {
     }
     private void resetControlsTimer() {
         handler.removeCallbacks(hideControls);
-        if(!timelineDragging&&!trackDialogOpen&&!feedbackBlocking())
+        // Preserve the title and playback controls on screen while paused.
+        // Live channels keep their existing automatic hiding behavior.
+        if(!timelineDragging&&!trackDialogOpen&&!feedbackBlocking()&&
+           (isLive||player==null||mediaPlaying()))
             handler.postDelayed(hideControls,remotePlayer()?6500:3000);
     }
     private void updatePlayerLabels(){
@@ -1166,6 +1178,7 @@ public final class MainActivity extends Activity {
         }
         if(controls!=null)controls.setVisibility(View.GONE);
         seriesCurrentLabel="";seriesPreviousLabel="";seriesNextLabel="";
+        playbackContentTitle="";playbackContentMode="";
         if(video!=null){setVideoNavigationEnabled(false);video.setVisibility(View.GONE);}
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         applySystemBars(false);
@@ -1290,12 +1303,13 @@ public final class MainActivity extends Activity {
                         "Retry video with software decoding"));
                 }
                 if(playbackFeedback!=null && playbackFeedback.getVisibility()==View.VISIBLE)updateFeedbackText();
+                updatePlayerLabels();
             });
         }
         @JavascriptInterface public void requestExit() {
             runOnUiThread(MainActivity.this::showExitConfirmation);
         }
-        @JavascriptInterface public String getAppVersion() { return "6.0.10"; }
+        @JavascriptInterface public String getAppVersion() { return "6.0.11"; }
         @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
             runOnUiThread(()->{
                 AnnouncementJobService.configure(MainActivity.this,enabled,language);
@@ -1374,6 +1388,14 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void resizeMini(boolean full) { }
         @JavascriptInterface public void stopMini() {stopMedia();}
         @JavascriptInterface public void stopMedia() {runOnUiThread(()->closePlayer(false));}
+        @JavascriptInterface public void setPlaybackTitle(String name,String mode) {
+            // Only UI text; does not touch stream selection, decoding or focus.
+            runOnUiThread(()->{
+                playbackContentTitle=briefEpisodeLabel(name,160);
+                playbackContentMode="live".equals(mode)?"live":"vod".equals(mode)?"vod":"";
+                refreshSeriesControls();
+            });
+        }
         @JavascriptInterface public void setSeriesNavigation(String current,String previous,String next) {
             runOnUiThread(()->{
                 seriesCurrentLabel=briefEpisodeLabel(current,160);
