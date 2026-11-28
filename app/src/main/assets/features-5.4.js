@@ -48,13 +48,43 @@ function ratingScore(v){
 }
 const previousApply=applyFilter;
 applyFilter=function(){
- filtered=catalog.filter(it=>!filter||String(it.name||it.title||'').toLowerCase().includes(filter));
- if(parentEnabled)filtered=filtered.filter(it=>{const c=cats.find(x=>String(x.category_id)===String(it.category_id));return !isAdult(c?.category_name)||unlockedCats.has(String(it.category_id))});
- if(active!=='live'){
-  filtered.sort((a,b)=>{let diff=0;
-   if(sortMode==='rated')diff=ratingScore(b)-ratingScore(a);
-   if(!diff){const x=dateScore(a),y=dateScore(b);diff=sortMode==='old'?(x&&y?x-y:x?-1:y?1:0):(x&&y?y-x:x?-1:y?1:0)}
-   return diff||String(a.name||a.title||'').localeCompare(String(b.name||b.title||''),lang);
+ // One category lookup per category instead of a full category scan for
+ // every catalog item. First occurrence wins, as in the previous cats.find().
+ let adultByCategory=null;
+ if(parentEnabled){
+  adultByCategory=new Map();
+  for(const c of cats){
+   const key=String(c.category_id);
+   if(!adultByCategory.has(key))adultByCategory.set(key,isAdult(c.category_name));
+  }
+ }
+ filtered=catalog.filter(it=>{
+  if(filter&&!String(it.name||it.title||'').toLowerCase().includes(filter))return false;
+  if(!adultByCategory)return true;
+  const id=String(it.category_id);
+  return !adultByCategory.get(id)||unlockedCats.has(id);
+ });
+ if(active!=='live'&&filtered.length>1){
+  // Provider metadata does not need reparsing at every sort comparison.
+  // Per-render WeakMap intentionally avoids stale scores after catalog edits.
+  const scores=new WeakMap();
+  const meta=it=>{
+   let value=scores.get(it);
+   if(!value){
+    value={date:dateScore(it),
+           rating:sortMode==='rated'?ratingScore(it):0,
+           name:String(it.name||it.title||'')};
+    scores.set(it,value);
+   }
+   return value;
+  };
+  filtered.sort((a,b)=>{
+   const x=meta(a),y=meta(b);
+   let diff=sortMode==='rated'?y.rating-x.rating:0;
+   if(!diff)diff=sortMode==='old'
+     ?(x.date&&y.date?x.date-y.date:x.date?-1:y.date?1:0)
+     :(x.date&&y.date?y.date-x.date:x.date?-1:y.date?1:0);
+   return diff||x.name.localeCompare(y.name,lang);
   });
  }
  renderItems();
