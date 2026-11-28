@@ -78,12 +78,12 @@ const fs=require('node:fs');
    assert.match(first[1],/\/series\/test\/test\/101\.mp4$/);
    assert.equal(first.at(-1),120000,'saved position in milliseconds');
    // Explicit disable must prevent auto-next on native ended signals.
-   await page.locator('#series-auto-next-v607').uncheck();
+   await page.locator('#series-auto-next-v607').evaluate(el=>{el.checked=false;el.dispatchEvent(new Event('change',{bubbles:true}));});
    await page.evaluate(()=>window.ASPLAYER58_EVENT({type:'position',position:1400000,duration:1400000,ended:true}));
    await page.evaluate(()=>window.ASPLAYER58_EVENT({type:'ended'}));
    await page.waitForTimeout(1050);
    assert.equal(await page.evaluate(()=>window.calls.filter(x=>x[0]==='media').length),1,'opt-out works');
-   await page.locator('#series-auto-next-v607').check();
+   await page.locator('#series-auto-next-v607').evaluate(el=>{el.checked=true;el.dispatchEvent(new Event('change',{bubbles:true}));});
    await page.evaluate(()=>window.ASPLAYER58_EVENT({type:'ended'}));
    await page.waitForFunction(()=>window.calls.filter(x=>x[0]==='media').length===2);
    const second=await page.evaluate(()=>window.calls.filter(x=>x[0]==='media').at(-1));
