@@ -106,7 +106,16 @@ renderSeasonEpisodes=function(raw){
    }
    tile.append(art,caption);list.append(tile);
   });
-  if(focus){const target=[...list.querySelectorAll('[data-episode]')].find(b=>id(group.items[Number(b.dataset.episode)])===selectedId);(target||list.querySelector('button'))?.focus();}
+  if(focus){
+   const target=[...list.querySelectorAll('[data-episode]')].find(b=>id(group.items[Number(b.dataset.episode)])===selectedId)||list.querySelector('button');
+   // Focus the actual episode card and reveal it inside the scrollable list.
+   // No secondary D-pad controller is installed: native/TV directional
+   // navigation remains owned by the existing focus manager.
+   if(target){
+    target.focus({preventScroll:true});
+    target.scrollIntoView({block:'nearest',inline:'nearest',behavior:'auto'});
+   }
+  }
  }
  groups.forEach((g,i)=>{const option=document.createElement('button');option.type='button';option.className='season-option';
   option.textContent=langText().season+' '+g.season+' · '+g.items.length+' '+langText().episodes;
@@ -222,6 +231,11 @@ css.textContent=[
  'body.asplayer-tv-dpad #episodes .episode-still-art img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:cover}',
  'body.asplayer-tv-dpad #episodes .episode-still-caption{display:flex;flex:1 1 0;min-width:0;overflow:hidden;overflow-wrap:anywhere;gap:6px}',
  'body.asplayer-tv-dpad #episodes .episode-still-caption strong{display:block;min-width:0;font-size:clamp(14px,1.5vw,19px);line-height:1.3;white-space:normal;overflow-wrap:anywhere}',
+ 'body.asplayer-tv-dpad #episodes .episode.episode-still-row:focus-visible{outline:4px solid #ffe189!important;outline-offset:2px;box-shadow:0 0 0 3px #102c4d,0 0 18px #5de8ff88!important}',
+ 'body.asplayer-tv-dpad #episodes #season-select{display:block;width:100%;min-height:58px;white-space:normal;line-height:1.25;text-align:left;padding:12px 15px;font-size:clamp(16px,1.6vw,22px)}',
+ 'body.asplayer-tv-dpad #episodes #season-options:not([hidden]){display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:9px;max-height:34vh;overflow-y:auto;padding:7px}',
+ 'body.asplayer-tv-dpad #episodes #season-options .season-option{min-height:56px;text-align:left;padding:10px 14px}',
+ 'body.asplayer-tv-dpad #episodes .episode-still-caption small{color:#c1d5e6;font-size:clamp(12px,1.15vw,15px)}',
  'body.asplayer-tv-dpad #episodes.episodes{display:block;min-width:0;width:100%;overflow:visible}',
  'body.asplayer-tv-dpad #episodes .episode-stills{display:grid;min-width:0;max-height:min(49vh,450px);overflow-y:auto;overflow-x:hidden;gap:8px}',
  'body.asplayer-tv-dpad #details-modal .detail-art-text{min-width:0;max-width:100%}',
