@@ -1018,6 +1018,7 @@ public final class MainActivity extends Activity {
         this.pictureMode=aspect; this.audioLanguage=audio; this.subtitleLanguage=subs;
         // Prior stream jitter influences the next stream's prebuffer (no forced restart).
         this.playingUrl=url; this.triedLiveFallback=false;
+        if(!url.contains("/series/")) {seriesCurrentLabel="";seriesPreviousLabel="";seriesNextLabel="";}
         this.usingSoftwareFallback=false;
         this.triedSmartVod=false;
         startMediaInternal(url,resumeMs);
