@@ -3,8 +3,8 @@
 (()=>{
 'use strict';
 const KEY='asplayer:series:auto-next:v607',T={
- es:{heading:'Avance automático del siguiente capítulo',help:'Inicia el siguiente capítulo disponible al finalizar el actual en el reproductor integrado.',season:'Temporada',episodes:'capítulos',select:'Elegir temporada',continue:'Continuar',replay:'Reproducir otra vez',next:'Siguiente capítulo',watched:'Visto',from:'Continuar desde',image:'Imagen del capítulo'},
- en:{heading:'Automatically play the next episode',help:'Plays the next available episode after the current one ends in the built-in player.',season:'Season',episodes:'episodes',select:'Select season',continue:'Resume',replay:'Replay',next:'Next episode',watched:'Watched',from:'Resume from',image:'Episode image'}};
+ es:{available:'Temporadas disponibles',selectHint:'Selecciona una temporada para ver sus capítulos',chapter:'Capítulo',heading:'Avance automático del siguiente capítulo',help:'Inicia el siguiente capítulo disponible al finalizar el actual en el reproductor integrado.',season:'Temporada',episodes:'capítulos',select:'Elegir temporada',continue:'Continuar',replay:'Reproducir otra vez',next:'Siguiente capítulo',watched:'Visto',from:'Continuar desde',image:'Imagen del capítulo'},
+ en:{available:'Available seasons',selectHint:'Choose a season to see its episodes',chapter:'Episode',heading:'Automatically play the next episode',help:'Plays the next available episode after the current one ends in the built-in player.',season:'Season',episodes:'episodes',select:'Select season',continue:'Resume',replay:'Replay',next:'Next episode',watched:'Watched',from:'Resume from',image:'Episode image'}};
 const langText=()=>T[lang==='es'?'es':'en'],id=x=>String(x?.id??x?.stream_id??''),sid=x=>String(x?.seriesId??x?.series_id??'');
 let enabled=true;try{enabled=localStorage.getItem(KEY)!=='false';}catch(_){}
 let context=null,historyTarget=null,playing=null,token=0,pending=null;
@@ -82,8 +82,8 @@ renderSeasonEpisodes=function(raw){
  holder.append(button,opts,list);
  function choose(index,focus=false){
   const group=groups[index];if(!group)return;selected=index;episodeMap={};list.replaceChildren();
-  button.textContent=langText().season+' '+group.season+' · '+group.items.length+' '+langText().episodes+' ▾';
-  button.setAttribute('aria-label',langText().select+': '+langText().season+' '+group.season);
+  button.textContent=langText().available+' · '+langText().season+' '+group.season+' · '+group.items.length+' '+langText().episodes+' ▾';
+  button.setAttribute('aria-label',langText().available+': '+langText().season+' '+group.season);button.title=langText().selectHint;
   button.setAttribute('aria-expanded','false');opts.hidden=true;list.hidden=false;
   group.items.forEach((ep,i)=>{
    episodeMap[String(i)]=ep;
@@ -120,7 +120,10 @@ renderSeasonEpisodes=function(raw){
   if(ep){
    const controls=document.getElementById('detail-actions');
    const resume=document.createElement('button');resume.type='button';resume.className='primary';resume.id='series-continue-episode';
-   resume.textContent='▶ '+(row.finished?langText().replay:langText().continue)+(row.position>5&&!row.finished?' · '+fmtTime(row.position):'');
+   const location=langText().season+' '+String(ep.season??groups[selected].season)+
+     ' · '+langText().chapter+' '+String(ep.episode_num??(context.episodes.indexOf(ep)+1));
+   resume.textContent='▶ '+(row.finished?langText().replay:langText().continue)+' · '+location+
+      (row.position>5&&!row.finished?' · '+fmtTime(row.position):'');
    resume.onclick=()=>{hideModal();play(ep,'series');};controls.append(resume);
    const next=context.episodes[context.episodes.indexOf(ep)+1];
    if(row.finished&&next){const nextButton=document.createElement('button');nextButton.type='button';nextButton.className='ghost';nextButton.id='series-next-episode';
@@ -128,6 +131,25 @@ renderSeasonEpisodes=function(raw){
   }
  }
  historyTarget=null;
+};
+function episodeName(ep){
+ if(!ep)return '';
+ const season=String(ep.season??'1'),number=String(ep.episode_num??'?');
+ const name=String(ep.title||ep.name||'').trim();
+ return langText().season+' '+season+' · '+langText().chapter+' '+number+(name?' — '+name:'');
+}
+function adjacentEpisode(at,delta){
+ if(!at||at.account!==sessionPrefix()||!at.queue.length)return null;
+ const i=at.queue.findIndex(ep=>id(ep)===at.id);
+ return i<0?null:(at.queue[i+delta]||null);
+}
+// One authoritative queue for both native buttons and end-of-play auto-next.
+window.ASPLAYER_SERIES_STEP=direction=>{
+ const delta=Number(direction)===-1?-1:Number(direction)===1?1:0;
+ if(!delta||!playing||playing.account!==sessionPrefix())return false;
+ const ep=adjacentEpisode(playing,delta);
+ if(!ep||!id(ep))return false;
+ play(ep,'series');return true;
 };
 const previousPlay=play;
 play=function(item,mode){
@@ -137,10 +159,22 @@ play=function(item,mode){
   const queue=context?.account===acc&&context?.id===parent?context.episodes.slice():[];
   playing={id:episode,parent,account:acc,queue,serial:token,finished:false};
  } else playing=null;
- return previousPlay(item,mode);
+ const result=previousPlay(item,mode);
+ // The native bridge queues this update after playMedia, so the active
+ // playback URL already identifies series vs movies on the Android UI thread.
+ try{
+  const at=playing,prev=adjacentEpisode(at,-1),next=adjacentEpisode(at,1);
+  window.ASPLAYER?.setSeriesNavigation?.(
+    at?episodeName(item):'',prev?episodeName(prev):'',next?episodeName(next):'');
+ }catch(_){}
+ return result;
 };
 const previousStop=stopPlayer;
-stopPlayer=function(){cancel();token++;playing=null;return previousStop();};
+stopPlayer=function(){
+ cancel();token++;playing=null;
+ try{window.ASPLAYER?.setSeriesNavigation?.('','','');}catch(_){}
+ return previousStop();
+};
 function finish(){
  const at=playing;
  if(!enabled||!at||at.finished||at.account!==sessionPrefix())return;

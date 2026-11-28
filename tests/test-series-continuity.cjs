@@ -14,6 +14,7 @@ const fs=require('node:fs');
     window.ASPLAYER={
       isAndroidTv:()=>tv,isRemoteNavigation:()=>tv,
       playMedia:(...args)=>window.calls.push(['media',...args]),
+      setSeriesNavigation:(...args)=>window.calls.push(['nav',...args]),
       stopMedia:()=>window.calls.push(['stop']),
       setUiLanguage:()=>{},setPlaybackOptions:()=>{},setDecoderMode:()=>{},
       supportsPremiumGlass:()=>true,getPerformanceTier:()=>tv?'efficient':'complete'
@@ -60,10 +61,11 @@ const fs=require('node:fs');
    await page.locator('#cards [data-watch-key="101"]').click();
    await page.waitForSelector('#season-select');
    assert.equal(await page.locator('#season-select').getAttribute('aria-expanded'),'false');
-   assert.match(await page.locator('#season-select').innerText(),/Temporada 1/);
+   assert.match(await page.locator('#season-select').innerText(),/Temporadas disponibles · Temporada 1/);
+   assert.match(await page.locator('#season-select').getAttribute('title'),/Selecciona una temporada/);
    assert.equal(await page.locator('.episode-still-row').count(),2);
    assert.equal(await page.locator('.episode-still-art img').count(),1,'provider episode image only');
-   assert.match(await page.locator('#series-continue-episode').innerText(),/02:00/);
+   assert.match(await page.locator('#series-continue-episode').innerText(),/Temporada 1 · Capítulo 1 · 02:00/);
    // Season changing remains possible directly from the historical episode.
    await page.locator('#season-select').click();
    assert.equal(await page.locator('#season-options').isVisible(),true);
@@ -77,6 +79,10 @@ const fs=require('node:fs');
    const first=await page.evaluate(()=>window.calls.filter(x=>x[0]==='media').at(-1));
    assert.match(first[1],/\/series\/test\/test\/101\.mp4$/);
    assert.equal(first.at(-1),120000,'saved position in milliseconds');
+   const nav1=await page.evaluate(()=>window.calls.filter(x=>x[0]==='nav').at(-1));
+   assert.match(nav1[1],/Temporada 1 · Capítulo 1/);
+   assert.equal(nav1[2],'','previous episode unavailable in first season');
+   assert.match(nav1[3],/Temporada 1 · Capítulo 2/);
    // Explicit disable must prevent auto-next on native ended signals.
    await page.locator('#series-auto-next-v607').evaluate(el=>{el.checked=false;el.dispatchEvent(new Event('change',{bubbles:true}));});
    await page.evaluate(()=>window.ASPLAYER58_EVENT({type:'position',position:1400000,duration:1400000,ended:true}));
@@ -92,9 +98,24 @@ const fs=require('node:fs');
    await page.waitForFunction(()=>window.calls.filter(x=>x[0]==='media').length===3);
    const third=await page.evaluate(()=>window.calls.filter(x=>x[0]==='media').at(-1));
    assert.match(third[1],/\/series\/test\/test\/201\.mp4$/,'next season');
+   const lastNav=await page.evaluate(()=>window.calls.filter(x=>x[0]==='nav').at(-1));
+   assert.equal(lastNav[3],'','last episode disables next');
+   assert.match(lastNav[2],/Temporada 1 · Capítulo 2/);
    await page.evaluate(()=>window.ASPLAYER58_EVENT({type:'ended'}));
    await page.waitForTimeout(950);
    assert.equal(await page.evaluate(()=>window.calls.filter(x=>x[0]==='media').length),3,'last episode does not loop');
+   // Manual previous navigates across season boundaries without using seekBy.
+   assert.equal(await page.evaluate(()=>window.ASPLAYER_SERIES_STEP(-1)),true);
+   assert.match((await page.evaluate(()=>window.calls.filter(x=>x[0]==='media').at(-1)))[1],/\/102\.mp4$/);
+   assert.equal(await page.evaluate(()=>window.ASPLAYER_SERIES_STEP(-1)),true);
+   assert.match((await page.evaluate(()=>window.calls.filter(x=>x[0]==='media').at(-1)))[1],/\/101\.mp4$/);
+   assert.equal(await page.evaluate(()=>window.ASPLAYER_SERIES_STEP(-1)),false,'first episode disables previous');
+   assert.equal(await page.evaluate(()=>window.ASPLAYER_SERIES_STEP(1)),true);
+   assert.match((await page.evaluate(()=>window.calls.filter(x=>x[0]==='media').at(-1)))[1],/\/102\.mp4$/);
+   assert.equal(await page.evaluate(()=>window.ASPLAYER_SERIES_STEP(0)),false,'reject unknown direction');
+   await page.evaluate(()=>play({stream_id:'401',name:'Movie',container_extension:'mp4'},'vod'));
+   const filmNav=await page.evaluate(()=>window.calls.filter(x=>x[0]==='nav').at(-1));
+   assert.deepEqual(filmNav,['nav','','',''],'movie clears series navigation');
    await page.reload();
    assert.equal(await page.locator('#series-auto-next-v607').isChecked(),true,'setting persisted');
    await page.evaluate(()=>{lang='en';languageUI();});
