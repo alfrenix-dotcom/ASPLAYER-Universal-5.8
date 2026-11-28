@@ -2,7 +2,7 @@ name: ASPLAYER Universal — Build and Validate
 on:
   workflow_dispatch:
   push:
-    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass, development/5.9.20-details-recents, development/5.9.21-cloudflare-ai, development/5.9.26-cold-start-notices, development/5.9.27-layout-glass, development/5.9.28-glass-depth, development/6.0-smart, development/6.0.4-settings-dpad, feature/6.0.4-back-exit-confirmation, feature/6.0.6-adaptive-performance, feature/6.0.7-series-continuity]
+    branches: [main, development/5.9.18-adaptive-pagination, development/5.9.19-liquid-glass, development/5.9.20-details-recents, development/5.9.21-cloudflare-ai, development/5.9.26-cold-start-notices, development/5.9.27-layout-glass, development/5.9.28-glass-depth, development/6.0-smart, development/6.0.4-settings-dpad, feature/6.0.4-back-exit-confirmation, feature/6.0.6-adaptive-performance, feature/6.0.7-series-continuity, feature/6.0.8-ui-speed]
     paths:
       - 'app/**'
       - 'tests/**'
@@ -96,6 +96,7 @@ jobs:
           node tests/test-picture-mode.cjs
           node tests/test-adaptive-performance.cjs
           node tests/test-series-continuity.cjs
+          node tests/test-ui-speed.cjs
       - name: Build debug APK (not Play-install compatible)
         run: gradle --no-daemon --stacktrace :app:assembleDebug
       - name: Verify packaged adaptive launcher resources
