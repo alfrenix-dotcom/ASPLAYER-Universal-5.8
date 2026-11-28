@@ -1240,7 +1240,7 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void requestExit() {
             runOnUiThread(MainActivity.this::showExitConfirmation);
         }
-        @JavascriptInterface public String getAppVersion() { return "6.0.7"; }
+        @JavascriptInterface public String getAppVersion() { return "6.0.8"; }
         @JavascriptInterface public void setNoticeSettings(boolean enabled,String language){
             runOnUiThread(()->{
                 AnnouncementJobService.configure(MainActivity.this,enabled,language);
