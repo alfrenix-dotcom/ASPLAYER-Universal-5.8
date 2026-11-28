@@ -1,14 +1,14 @@
-// Regression tests for the isolated 6.0.9 Android/TV Back-to-exit change.
+// Regression tests for the isolated 6.0.10 Android/TV Back-to-exit change.
 // Does not require a device or touch any user session.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const java = fs.readFileSync('app/src/main/java/com/alftech/asplayer/universal/MainActivity.java','utf8');
 const gradle = fs.readFileSync('app/build.gradle','utf8');
-assert.match(gradle, /versionCode\s+6011/);
-assert.match(gradle, /versionName\s+'6\.0\.9'/);
+assert.match(gradle, /versionCode\s+6012/);
+assert.match(gradle, /versionName\s+'6\.0\.10'/);
 assert.match(gradle, /applicationId 'com\.alftech\.asplayer\.universal\.vlc\.final\.v592'/);
-assert.match(java, /getAppVersion\(\)\s*\{\s*return "6\.0\.9";/);
+assert.match(java, /getAppVersion\(\)\s*\{\s*return "6\.0\.10";/);
 assert.match(java, /@JavascriptInterface public void requestExit\(\)/);
 assert.match(java, /finishAffinity\(\)/);
 assert.match(java, /AlertDialog\.BUTTON_NEGATIVE/);
@@ -41,4 +41,4 @@ assert.equal(run({home:true}), 'confirmExit', 'home root prompts to exit');
 assert.equal(run({home:false}), 'navigate', 'catalog returns through existing Back handler');
 assert.equal(run({home:true,overlay:true}), 'navigate', 'dialog has priority over exit');
 assert.equal(run({home:true,field:true}), 'navigate,blur', 'text field never triggers immediate exit');
-console.log('6.0.9 Back-to-exit routing regression tests passed');
+console.log('6.0.10 Back-to-exit routing regression tests passed');
