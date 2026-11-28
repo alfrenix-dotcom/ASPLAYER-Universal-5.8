@@ -215,7 +215,7 @@ css.textContent=[
  '#episodes .episode-stills{display:grid;gap:9px;max-height:min(56vh,560px);overflow-y:auto;padding:5px 3px 12px}',
  '#episodes .episode-still-row{display:flex;align-items:center;gap:12px;width:100%;min-height:92px;text-align:left;padding:9px;border-radius:14px}',
  '#episodes .episode-still-art{display:grid;place-items:center;flex:0 0 clamp(100px,30%,165px);aspect-ratio:16/9;overflow:hidden;border-radius:10px;background:#10243d;border:1px solid #46718a;color:#a1deea}',
- '#episodes .episode-still-art img{width:100%;height:100%;object-fit:cover;display:block}',
+ '#episodes .episode-still-art img{width:100%;height:100%;object-fit:contain;display:block}',
  '#episodes .episode-still-caption{display:flex;flex:1;min-width:0;flex-direction:column;gap:6px}',
  '#episodes .episode-still-caption strong{overflow-wrap:anywhere;line-height:1.3}',
  '#episodes .episode-still-caption small{font-size:12px;opacity:.84}',
@@ -228,7 +228,7 @@ css.textContent=[
  // still never expands to the entire width and the caption stays alongside it.
  'body.asplayer-tv-dpad #episodes .episode.episode-still-row{display:flex;flex-direction:row;align-items:center;gap:14px;width:100%;min-width:0;min-height:112px;max-height:none;scroll-margin:16px;margin:8px 0;padding:10px 12px;overflow:hidden}',
  'body.asplayer-tv-dpad #episodes .episode-still-art{display:grid;flex:0 0 clamp(124px,22%,190px);width:clamp(124px,22%,190px);max-width:190px;min-width:124px;height:auto;max-height:110px;aspect-ratio:16/9;overflow:hidden}',
- 'body.asplayer-tv-dpad #episodes .episode-still-art img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:cover}',
+ 'body.asplayer-tv-dpad #episodes .episode-still-art img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain}',
  'body.asplayer-tv-dpad #episodes .episode-still-caption{display:flex;flex:1 1 0;min-width:0;overflow:hidden;overflow-wrap:anywhere;gap:6px}',
  'body.asplayer-tv-dpad #episodes .episode-still-caption strong{display:block;min-width:0;font-size:clamp(14px,1.5vw,19px);line-height:1.3;white-space:normal;overflow-wrap:anywhere}',
  'body.asplayer-tv-dpad #episodes .episode.episode-still-row:focus-visible{outline:4px solid #ffe189!important;outline-offset:2px;box-shadow:0 0 0 3px #102c4d,0 0 18px #5de8ff88!important}',
