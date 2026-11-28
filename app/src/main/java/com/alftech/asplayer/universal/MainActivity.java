@@ -310,7 +310,7 @@ public final class MainActivity extends Activity {
                         hidePlaybackFeedback();
                     } else {
                         showLoadingFeedback();
-                        scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(profile));
+                        scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(isLive,profile));
                     }
                     syncTimeline();
                     updatePlayerLabels();
@@ -331,13 +331,13 @@ public final class MainActivity extends Activity {
                         if(playbackStarted){
                             cancelPlaybackDeadline();
                             if(videoOutputSeen){reportVideoReady();hidePlaybackFeedback();}
-                            else scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(profile));
+                            else scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(isLive,profile));
                         }
                     } else if(playbackStarted && !rebufferWaiting) {
                         rebufferWaiting=true;
                         handler.removeCallbacks(showRebuffer);
                         handler.postDelayed(showRebuffer,1400);
-                        schedulePlaybackDeadline(25000);
+                        schedulePlaybackDeadline(isLive?25000:45000);
                     }
                     if(!isLive)sendEvent("buffering");
                     break;
@@ -610,8 +610,8 @@ public final class MainActivity extends Activity {
         if(feedbackTitle==null)return;
         if(playbackFailed) {
             feedbackTitle.setText(localized(
-                "CONTENIDO EN MANTENIMIENTO, ESPERE A FUTURAS ACTUALIZACIONES",
-                "CONTENT UNDER MAINTENANCE. PLEASE WAIT FOR FUTURE UPDATES."));
+                "NO SE PUDO INICIAR LA REPRODUCCIÓN",
+                "UNABLE TO START PLAYBACK"));
             feedbackDetail.setText(localized(
                 "No se pudo reproducir este contenido en este momento.",
                 "This content could not be played at this time."));
@@ -1056,10 +1056,10 @@ public final class MainActivity extends Activity {
                 public void state(int state){if(!valid())return;
                     if(state==androidx.media3.common.Player.STATE_READY){
                         playbackStarted=true;rebufferWaiting=false;cancelPlaybackDeadline();handler.removeCallbacks(showRebuffer);
-                        if(videoOutputSeen)hidePlaybackFeedback();else scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(profile));
+                        if(videoOutputSeen)hidePlaybackFeedback();else scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(isLive,profile));
                         syncTimeline();updatePlayerLabels();sendEvent("ready");
                     }else if(state==androidx.media3.common.Player.STATE_BUFFERING){
-                        if(playbackStarted&&!rebufferWaiting){rebufferWaiting=true;handler.postDelayed(showRebuffer,1400);schedulePlaybackDeadline(25000);}
+                        if(playbackStarted&&!rebufferWaiting){rebufferWaiting=true;handler.postDelayed(showRebuffer,1400);schedulePlaybackDeadline(isLive?25000:45000);}
                         sendEvent("buffering");
                     }else if(state==androidx.media3.common.Player.STATE_ENDED){cancelPlaybackDeadline();cancelVideoWatchdog();hidePlaybackFeedback();sendPosition(true);sendEvent("ended");}
                 }
@@ -1498,7 +1498,7 @@ public final class MainActivity extends Activity {
         AnnouncementJobService.setForeground(true);
         if(resumeOpening&&playerVisible&&!playbackFailed&&player!=null){
             resumeOpening=false;mediaPlay();
-            if(playbackStarted&&!videoOutputSeen)scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(profile));
+            if(playbackStarted&&!videoOutputSeen)scheduleVideoWatchdog(LivePlaybackPolicy.videoOutputTimeout(isLive,profile));
             else if(!playbackStarted)schedulePlaybackDeadline(LivePlaybackPolicy.startupTimeout(isLive,profile,triedLiveFallback||!allowLiveFallback,activeMediaUrl));
         }
         if(AnnouncementJobService.enabled(this))maybeRequestNoticePermission(false);
