@@ -25,9 +25,15 @@ final class LivePlaybackPolicy {
     static long startupTimeout(boolean live, String profile, boolean triedAlternate, String url) {
         boolean quick = "adaptive".equals(profile) || "fast".equals(profile);
         if (live && !triedAlternate && quick && !alternate(url).isEmpty()) return 7000L;
+        // IPTV VOD containers can need more time to open and discover tracks.
+        // Successful streams are unaffected; only the bounded failure deadline moves.
+        if (!live) return "ultra".equals(profile) ? 55000L : (!quick ? 45000L : 40000L);
         if ("ultra".equals(profile)) return 25000L;
         if (!quick) return 18000L;
-        return live ? 12000L : 16000L;
+        return 12000L;
     }
     static long videoOutputTimeout(String profile) { return "ultra".equals(profile) ? 12000L : 7000L; }
+    static long videoOutputTimeout(boolean live,String profile) {
+        return live?videoOutputTimeout(profile):("ultra".equals(profile)?20000L:16000L);
+    }
 }
