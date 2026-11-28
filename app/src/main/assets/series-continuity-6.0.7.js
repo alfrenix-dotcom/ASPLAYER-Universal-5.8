@@ -89,7 +89,7 @@ renderSeasonEpisodes=function(raw){
    episodeMap[String(i)]=ep;
    const tile=document.createElement('button');tile.type='button';tile.className='episode episode-still-row';tile.dataset.episode=String(i);
    if(id(ep)===selectedId)tile.classList.add('episode-current');
-   const art=document.createElement('span');art.className='episode-still-art',src=imageOf(ep);
+   const art=document.createElement('span');art.className='episode-still-art';const src=imageOf(ep);
    if(src){const img=document.createElement('img');img.src=src;img.alt=langText().image;img.loading='lazy';img.decoding='async';
     img.onerror=()=>{img.remove();art.textContent='▶';art.classList.add('episode-still-fallback');};art.append(img);
    }else{art.textContent='▶';art.classList.add('episode-still-fallback');}
