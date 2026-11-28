@@ -65,6 +65,29 @@ const fs=require('node:fs');
    assert.match(await page.locator('#season-select').getAttribute('title'),/Selecciona una temporada/);
    assert.equal(await page.locator('.episode-still-row').count(),2);
    assert.equal(await page.locator('.episode-still-art img').count(),1,'provider episode image only');
+   if(tv){
+    const sizes=await page.evaluate(()=>{
+     const row=document.querySelector('#episodes .episode-still-row');
+     const art=row?.querySelector('.episode-still-art');
+     const caption=row?.querySelector('.episode-still-caption');
+     const image=art?.querySelector('img');
+     return {
+      display:getComputedStyle(row).display,
+      artWidth:art.getBoundingClientRect().width,
+      rowWidth:row.getBoundingClientRect().width,
+      captionWidth:caption.getBoundingClientRect().width,
+      captionLeft:caption.getBoundingClientRect().left,
+      artRight:art.getBoundingClientRect().right,
+      imageWidth:image?.getBoundingClientRect().width||0
+     };
+    });
+    assert.equal(sizes.display,'flex','Android TV episode card must use horizontal layout');
+    assert.ok(sizes.artWidth>=120&&sizes.artWidth<=195,'episode thumbnail must be bounded');
+    assert.ok(sizes.artWidth<sizes.rowWidth/2,'image must not fill full card');
+    assert.ok(sizes.captionWidth>120,'episode name has its own column');
+    assert.ok(sizes.captionLeft>=sizes.artRight,'caption is beside thumbnail');
+    assert.ok(sizes.imageWidth<=195,'episode image cannot overflow thumbnail');
+   }
    assert.match(await page.locator('#series-continue-episode').innerText(),/Temporada 1 · Capítulo 1 · 02:00/);
    // Season changing remains possible directly from the historical episode.
    await page.locator('#season-select').click();
