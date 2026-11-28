@@ -103,14 +103,14 @@ public final class MainActivity extends Activity {
             if(show)seriesNowPlaying.setText(seriesCurrentLabel);
         }
         if(previousEpisodeButton!=null){
-            previousEpisodeButton.setText(series?localized("◀ Cap. anterior","◀ Previous episode"):"−10s");
+            previousEpisodeButton.setText(series?(remotePlayer()?localized("◀ Anterior","◀ Previous"): "◀ Cap."):"−10s");
             previousEpisodeButton.setEnabled(series?!seriesPreviousLabel.isEmpty():canSeek());
             previousEpisodeButton.setContentDescription(series
                 ?localized("Capítulo anterior: ","Previous episode: ")+seriesPreviousLabel
                 :localized("Retroceder 10 segundos","Rewind 10 seconds"));
         }
         if(nextEpisodeButton!=null){
-            nextEpisodeButton.setText(series?localized("Cap. siguiente ▶","Next episode ▶"):"+10s");
+            nextEpisodeButton.setText(series?(remotePlayer()?localized("Siguiente ▶","Next ▶"):"Cap. ▶"):"+10s");
             nextEpisodeButton.setEnabled(series?!seriesNextLabel.isEmpty():canSeek());
             nextEpisodeButton.setContentDescription(series
                 ?localized("Siguiente capítulo: ","Next episode: ")+seriesNextLabel
