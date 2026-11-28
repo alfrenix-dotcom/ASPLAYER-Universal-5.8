@@ -9,7 +9,7 @@ const entries=new Map(),MAX_ENTRIES=6,MAX_CATEGORIES=300,TTL_MS=30000;
 const eligible=action=>/^get_(?:live|vod|series)_categories$/.test(action);
 const copy=rows=>Array.isArray(rows)?rows.map(row=>
  row&&typeof row==='object'&&!Array.isArray(row)?{...row}:row):rows;
-function keyOf(action,extra){return sessionPrefix()+'\u001f'+action+'|'+JSON.stringify(extra);}
+function keyOf(action,extra){return sessionPrefix()+'\u001f'+server().base+'\u001f'+action+'|'+JSON.stringify(extra);}
 function trim(){
  while(entries.size>MAX_ENTRIES)entries.delete(entries.keys().next().value);
 }
