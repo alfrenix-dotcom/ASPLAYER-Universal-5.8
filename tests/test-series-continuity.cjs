@@ -87,7 +87,10 @@ const fs=require('node:fs');
     assert.ok(sizes.captionWidth>120,'episode name has its own column');
     assert.ok(sizes.captionLeft>=sizes.artRight,'caption is beside thumbnail');
     assert.ok(sizes.imageWidth<=195,'episode image cannot overflow thumbnail');
+    const fit=await page.locator('#episodes .episode-still-art img').first().evaluate(img=>getComputedStyle(img).objectFit);
+    assert.equal(fit,'contain','Android TV should show the whole episode image');
    }
+   assert.equal(await page.locator('#episodes .episode-still-art img').first().evaluate(img=>getComputedStyle(img).objectFit),'contain','all devices should show full thumbnail');
    assert.match(await page.locator('#series-continue-episode').innerText(),/Temporada 1 · Capítulo 1 · 02:00/);
    // Season changing remains possible directly from the historical episode.
    await page.locator('#season-select').click();
