@@ -86,6 +86,45 @@ public final class MainActivity extends Activity {
     private void releaseSmartVod(){if(smartVod!=null){SmartVodEngine old=smartVod;smartVod=null;root.removeView(old.view);old.release();}}
     private LinearLayout controls, transportRow, extrasRow;
     private Button playPause, repairVideoButton, liveAspectButton, liveCloseButton, audioButton, subtitlesButton, aspectButton;
+    private Button previousEpisodeButton, nextEpisodeButton;
+    private TextView seriesNowPlaying;
+    private String seriesCurrentLabel="", seriesPreviousLabel="", seriesNextLabel="";
+    private boolean isSeriesPlayback() { return !isLive && playingUrl.contains("/series/"); }
+    private String briefEpisodeLabel(String value,int max) {
+        if(value==null)return "";
+        String compact=value.replaceAll("[\\p{Cntrl}]+"," ").trim();
+        return compact.length()>max?compact.substring(0,max):compact;
+    }
+    private void refreshSeriesControls() {
+        boolean series=isSeriesPlayback();
+        if(seriesNowPlaying!=null){
+            boolean show=series&&!seriesCurrentLabel.isEmpty();
+            seriesNowPlaying.setVisibility(show?View.VISIBLE:View.GONE);
+            if(show)seriesNowPlaying.setText(seriesCurrentLabel);
+        }
+        if(previousEpisodeButton!=null){
+            previousEpisodeButton.setText(series?localized("◀ Cap. anterior","◀ Previous episode"):"−10s");
+            previousEpisodeButton.setEnabled(series?!seriesPreviousLabel.isEmpty():canSeek());
+            previousEpisodeButton.setContentDescription(series
+                ?localized("Capítulo anterior: ","Previous episode: ")+seriesPreviousLabel
+                :localized("Retroceder 10 segundos","Rewind 10 seconds"));
+        }
+        if(nextEpisodeButton!=null){
+            nextEpisodeButton.setText(series?localized("Cap. siguiente ▶","Next episode ▶"):"+10s");
+            nextEpisodeButton.setEnabled(series?!seriesNextLabel.isEmpty():canSeek());
+            nextEpisodeButton.setContentDescription(series
+                ?localized("Siguiente capítulo: ","Next episode: ")+seriesNextLabel
+                :localized("Avanzar 10 segundos","Forward 10 seconds"));
+        }
+    }
+    private void navigateSeries(int delta){
+        if(!playerVisible||!isSeriesPlayback())return;
+        if(delta<0&&seriesPreviousLabel.isEmpty())return;
+        if(delta>0&&seriesNextLabel.isEmpty())return;
+        // One authoritative episode queue lives in WebView; never guess URLs
+        // or mutate the existing native D-pad/seek handlers.
+        evaluate("window.ASPLAYER_SERIES_STEP&&window.ASPLAYER_SERIES_STEP("+ (delta<0?-1:1) +");");
+    }
     private final ArrayList<List<View>> navigationRows=new ArrayList<>();
     private final ArrayList<Button> seekButtons=new ArrayList<>();
     private boolean remotePlayerMode, trackDialogOpen;
@@ -504,6 +543,7 @@ public final class MainActivity extends Activity {
         boolean available=canSeek();
         if(seekRow!=null)seekRow.setVisibility(available?View.VISIBLE:View.GONE);
         for(Button b:seekButtons)b.setEnabled(available);
+        refreshSeriesControls();
         if(!available)return;
         long length=mediaLength(),at=Math.max(0,mediaTime());
         if(!timelineDragging) {
@@ -736,14 +776,25 @@ public final class MainActivity extends Activity {
         seekRow.addView(timeline,new LinearLayout.LayoutParams(0,dp(46),1));
         seekRow.addView(durationText,new LinearLayout.LayoutParams(dp(58),dp(46)));
         controls.addView(seekRow);
+        seriesNowPlaying=new TextView(this);
+        seriesNowPlaying.setTextSize(isTvDevice()?16:13);
+        seriesNowPlaying.setTextColor(0xFFD6F5FF);
+        seriesNowPlaying.setMaxLines(2);
+        seriesNowPlaying.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        seriesNowPlaying.setPadding(dp(10),dp(2),dp(10),dp(4));
+        seriesNowPlaying.setVisibility(View.GONE);
+        seriesNowPlaying.setFocusable(false);
+        controls.addView(seriesNowPlaying,new LinearLayout.LayoutParams(-1,-2));
 
         addNavigationRow(seekRow);
         LinearLayout transport=transportRow=row();
         addControl(transport,button("−30s",()->seekBy(-30000)),1,true);
-        addControl(transport,button("−10s",()->seekBy(-10000)),1,true);
+        previousEpisodeButton=button("−10s",()->{if(isSeriesPlayback())navigateSeries(-1);else seekBy(-10000);});
+        addControl(transport,previousEpisodeButton,1,false);
         playPause=button("Pause",this::togglePause);
         addControl(transport,playPause,1.5f,false);
-        addControl(transport,button("+10s",()->seekBy(10000)),1,true);
+        nextEpisodeButton=button("+10s",()->{if(isSeriesPlayback())navigateSeries(1);else seekBy(10000);});
+        addControl(transport,nextEpisodeButton,1,false);
         addControl(transport,button("+30s",()->seekBy(30000)),1,true);
         controls.addView(transport);addNavigationRow(transport);
 
@@ -781,6 +832,7 @@ public final class MainActivity extends Activity {
         liveAspectButton.setVisibility(isLive?View.VISIBLE:View.GONE);
         liveCloseButton.setVisibility(isLive?View.VISIBLE:View.GONE);
         if(isLive)seekRow.setVisibility(View.GONE);
+        refreshSeriesControls();
     }
     private Button defaultPlayerControl(){return isLive?repairVideoButton:playPause;}
     private void togglePause() {
@@ -811,6 +863,7 @@ public final class MainActivity extends Activity {
         if(liveAspectButton!=null)liveAspectButton.setText("contain".equals(pictureMode)?localized("Ampliar pantalla","Fill screen"):localized("Ajustar pantalla","Fit screen"));
         if(repairVideoButton!=null)repairVideoButton.setText(localized("Recuperar imagen","Recover video"));
         if(liveCloseButton!=null)liveCloseButton.setText(localized("Cerrar reproducción","Close playback"));
+        refreshSeriesControls();
     }
     private void showControls() {
         if(!playerVisible||feedbackBlocking())return;
@@ -1111,6 +1164,7 @@ public final class MainActivity extends Activity {
             if(attached){player.detachViews();attached=false;}
         }
         if(controls!=null)controls.setVisibility(View.GONE);
+        seriesCurrentLabel="";seriesPreviousLabel="";seriesNextLabel="";
         if(video!=null){setVideoNavigationEnabled(false);video.setVisibility(View.GONE);}
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         applySystemBars(false);
@@ -1319,6 +1373,14 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void resizeMini(boolean full) { }
         @JavascriptInterface public void stopMini() {stopMedia();}
         @JavascriptInterface public void stopMedia() {runOnUiThread(()->closePlayer(false));}
+        @JavascriptInterface public void setSeriesNavigation(String current,String previous,String next) {
+            runOnUiThread(()->{
+                seriesCurrentLabel=briefEpisodeLabel(current,160);
+                seriesPreviousLabel=briefEpisodeLabel(previous,90);
+                seriesNextLabel=briefEpisodeLabel(next,90);
+                refreshSeriesControls();
+            });
+        }
         @JavascriptInterface public void playMedia(String url,String p,String a,String audio,String subs,long pos) {
             runOnUiThread(()->startMedia(url,p,a,audio,subs,pos));
         }
